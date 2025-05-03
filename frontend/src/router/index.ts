@@ -40,6 +40,7 @@ const router = createRouter({
   ]
 });
 
+// 'from' parameter might be needed for future navigation logic
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   
