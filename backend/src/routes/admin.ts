@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { authenticateAdmin } from '../middleware/auth';
-import { updateUser } from '../services/user';
+import { authenticateAdmin } from '../middleware/authMiddlware';
+import { updateUser } from '../services/userService';
+import { db } from '../database';
 
 const router = Router();
 

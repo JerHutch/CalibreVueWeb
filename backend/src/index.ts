@@ -4,11 +4,11 @@ import dotenv from 'dotenv';
 import session from 'express-session';
 import passport from 'passport';
 import { setupRoutes } from './routes';
-import { setupAuth } from './auth';
-import { setupDatabase } from './database';
-import './config/passport';
+
 
 dotenv.config();
+
+var sqliteStore = require('connect-sqlite3')(session);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -20,15 +20,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
+
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+  store: new sqliteStore({
+    db: process.env.DB_FILENAME || ':memory:'
+  })
 }));
 
 // Initialize Passport
@@ -36,9 +36,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Setup routes and middleware
-setupAuth(app);
 setupRoutes(app);
-setupDatabase();
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

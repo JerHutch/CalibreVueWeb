@@ -2,12 +2,30 @@ import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite3';
 import { promisify } from 'util';
 
-const db = new sqlite3.Database(':memory:');
+// Create a single database instance
+const sqliteDb = new sqlite3.Database(process.env.DB_FILENAME || ':memory:');
 
-// Promisify database methods
-const dbRun = promisify(db.run.bind(db));
-const dbGet = promisify(db.get.bind(db));
-const dbAll = promisify(db.all.bind(db));
+// Promisify database methods with proper typing
+const dbRun = (sql: string, params?: any[]) => new Promise<void>((resolve, reject) => {
+  sqliteDb.run(sql, params, (err) => {
+    if (err) reject(err);
+    else resolve();
+  });
+});
+
+const dbGet = (sql: string, params?: any[]) => new Promise<any>((resolve, reject) => {
+  sqliteDb.get(sql, params, (err, row) => {
+    if (err) reject(err);
+    else resolve(row);
+  });
+});
+
+const dbAll = (sql: string, params?: any[]) => new Promise<any[]>((resolve, reject) => {
+  sqliteDb.all(sql, params, (err, rows) => {
+    if (err) reject(err);
+    else resolve(rows);
+  });
+});
 
 // Initialize database
 const initDb = async () => {

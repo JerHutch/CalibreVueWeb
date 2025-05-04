@@ -1,3 +1,25 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+
+const router = useRouter();
+const authStore = useAuthStore();
+
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const isAdmin = computed(() => authStore.isAdmin);
+const user = computed(() => authStore.user);
+
+const login = () => {
+  // TODO: Implement OAuth login
+};
+
+const logout = () => {
+  authStore.logout();
+  router.push('/');
+};
+</script>
+
 <template>
   <div class="app">
     <header class="header">
@@ -21,28 +43,6 @@
     </main>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-
-const router = useRouter();
-const authStore = useAuthStore();
-
-const isAuthenticated = computed(() => authStore.isAuthenticated);
-const isAdmin = computed(() => authStore.isAdmin);
-const user = computed(() => authStore.user);
-
-const login = () => {
-  // TODO: Implement OAuth login
-};
-
-const logout = () => {
-  authStore.logout();
-  router.push('/');
-};
-</script>
 
 <style scoped>
 .app {

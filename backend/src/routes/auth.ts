@@ -1,9 +1,63 @@
 import { Router } from 'express';
 import passport from 'passport';
-import { authenticateUser } from '../middleware/auth';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import { findOrCreateUser } from '../services/userService';
+import { authenticateUser } from '../middleware/authMiddlware';
 import { sendApprovalEmail } from '../services/email';
 
 const router = Router();
+
+// Google Strategy
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      callbackURL: '/api/auth/google/callback',
+      scope: ['profile']
+    },
+    async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: Express.User) => void) => {
+      try {
+        const user = await findOrCreateUser({
+          id: profile.id,
+          name: profile.displayName,
+          email: profile.emails?.[0]?.value || '',
+          isAdmin: false,
+          isApproved: false
+        });
+        done(null, user);
+      } catch (error) {
+        done(error as Error);
+      }
+    }
+  )
+);
+
+// GitHub Strategy
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      callbackURL: '/api/auth/github/callback'
+    },
+    async (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: Express.User) => void) => {
+      try {
+        const user = await findOrCreateUser({
+          id: profile.id,
+          name: profile.displayName || profile.username,
+          email: profile.emails?.[0]?.value || '',
+          isAdmin: false,
+          isApproved: false
+        });
+        done(null, user);
+      } catch (error) {
+        done(error as Error);
+      }
+    }
+  )
+); 
 
 // OAuth routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -19,10 +73,10 @@ router.get(
     }
 
     // Check if user needs approval
-    if (!req.user.isApproved) {
-      await sendApprovalEmail(req.user);
-      return res.redirect('/pending');
-    }
+    // if (!req.user.isApproved) {
+    //   await sendApprovalEmail(req.user);
+    //   return res.redirect('/pending');
+    // }
 
     res.redirect('/');
   }
@@ -37,10 +91,10 @@ router.get(
     }
 
     // Check if user needs approval
-    if (!req.user.isApproved) {
-      await sendApprovalEmail(req.user);
-      return res.redirect('/pending');
-    }
+    // if (!req.user.isApproved) {
+    //   await sendApprovalEmail(req.user);
+    //   return res.redirect('/pending');
+    // }
 
     res.redirect('/');
   }

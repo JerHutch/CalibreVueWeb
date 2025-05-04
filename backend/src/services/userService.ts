@@ -1,19 +1,29 @@
 import { User, UserInput } from '../types/user';
 import { db } from '../database';
 
-export const findOrCreateUser = async (input: UserInput & { id: string }): Promise<User> => {
-  const existingUser = await db.get(
-    'SELECT * FROM users WHERE id = ? OR email = ?',
-    [input.id, input.email]
-  );
+const convertDbUserToUser = (dbUser: any): User => ({
+  id: dbUser.id,
+  name: dbUser.name,
+  email: dbUser.email,
+  isAdmin: Boolean(dbUser.isAdmin),
+  isApproved: Boolean(dbUser.isApproved),
+  createdAt: new Date(dbUser.createdAt),
+  updatedAt: new Date(dbUser.updatedAt)
+});
 
+export const findOrCreateUser = async (input: UserInput & { id: string }): Promise<User> => {
+  const existingUser = await db.get('SELECT * FROM users WHERE id = ? OR email = ?', [input.id, input.email]);
   if (existingUser) {
-    return existingUser;
+    return convertDbUserToUser(existingUser);
   }
 
   const now = new Date();
   const user: User = {
-    ...input,
+    id: input.id,
+    name: input.name,
+    email: input.email,
+    isAdmin: input.isAdmin || false,
+    isApproved: input.isApproved || false,
     createdAt: now,
     updatedAt: now
   };
@@ -60,5 +70,5 @@ export const updateUser = async (id: string, updates: Partial<UserInput>): Promi
     throw new Error('User not found');
   }
 
-  return updatedUser;
+  return convertDbUserToUser(updatedUser);
 }; 

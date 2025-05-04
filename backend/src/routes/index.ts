@@ -8,7 +8,6 @@ export function setupRoutes(app: any) {
 
   // API routes
   router.use('/books', bookRoutes);
-  router.use('/auth', authRoutes);
   router.use('/admin', adminRoutes);
 
   app.use('/api', router);
