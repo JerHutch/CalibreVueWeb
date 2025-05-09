@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { bookRoutes } from './books';
-import { authRoutes } from './auth';
-import { adminRoutes } from './admin';
+import { Application } from 'express';
+import bookRoutes from './bookRoutes';
 
-export function setupRoutes(app: any) {
+export const setupRoutes = (app: Application) => {
   const router = Router();
-
-  // API routes
+  
+  // Mount book routes
   router.use('/books', bookRoutes);
-  router.use('/auth', authRoutes);
-  router.use('/admin', adminRoutes);
-
+  
+  // Mount all routes under /api
   app.use('/api', router);
-} 
+}; 
