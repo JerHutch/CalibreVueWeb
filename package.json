@@ -10,10 +10,11 @@
     "test": "concurrently \"cd backend && npm test\" \"cd frontend && npm test\""
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.7.0",
     "concurrently": "^8.2.2"
   },
   "workspaces": [
     "backend",
     "frontend"
   ]
-} 
+}
