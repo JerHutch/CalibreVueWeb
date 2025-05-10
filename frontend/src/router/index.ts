@@ -2,13 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/'),
   routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue')
-    },
     {
       path: '/books',
       name: 'books',
@@ -41,13 +36,18 @@ const router = createRouter({
   ]
 });
 
+// Add error handling for navigation
+router.onError((error) => {
+  console.error('Router error:', error);
+});
+
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' });
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    next({ name: 'home' });
+    next({ name: 'books' });
   } else {
     next();
   }

@@ -26,6 +26,8 @@ export const useAuthStore = defineStore('auth', () => {
         username,
         password
       });
+
+      console.log('login response', response.data);
       
       const { user: userData, token } = response.data;
       

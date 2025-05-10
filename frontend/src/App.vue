@@ -2,7 +2,6 @@
   <div class="app">
     <header class="header">
       <nav class="nav">
-        <router-link to="/">Home</router-link>
         <router-link to="/books">Books</router-link>
         <router-link to="/admin" v-if="isAdmin">Admin</router-link>
       </nav>
@@ -33,10 +32,6 @@ const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const isAdmin = computed(() => authStore.isAdmin);
 const user = computed(() => authStore.user);
-
-const login = () => {
-  // TODO: Implement OAuth login
-};
 
 const logout = () => {
   authStore.logout();

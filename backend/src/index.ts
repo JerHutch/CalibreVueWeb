@@ -6,6 +6,7 @@ import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
 import { initializeController as initializeAuthController } from './controllers/authController';
 import { initializeMiddleware } from './middleware/authMiddleware';
+import { requestLogger } from './middleware/loggingMiddleware';
 import { Database } from 'sqlite3';
 
 const app = express();
@@ -14,6 +15,7 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 
 // Initialize services
 const calibreDb = new Database(process.env.CALIBRE_DB_PATH || 'metadata.db');

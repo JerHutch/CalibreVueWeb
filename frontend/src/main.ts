@@ -9,9 +9,6 @@ const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
 
-// Check authentication status
-const authStore = useAuthStore();
-authStore.checkAuth();
 
 app.use(router);
 app.mount('#app'); 

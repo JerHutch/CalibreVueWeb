@@ -53,6 +53,7 @@ const isLoading = ref(false);
 const handleLogin = async () => {
   try {
     isLoading.value = true;
+    console.log('login', username.value);
     await authStore.login(username.value, password.value);
     router.push('/books');
   } catch (error) {
