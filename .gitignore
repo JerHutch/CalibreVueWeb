@@ -20,6 +20,7 @@ dist-ssr/
 .env.test.local
 .env.production.local
 .env.*.local
+.*.env
 
 # Logs
 npm-debug.log*
@@ -52,3 +53,4 @@ docker-compose.override.yml
 *.db-journal
 *.db-wal
 *.db-shm 
+*.env

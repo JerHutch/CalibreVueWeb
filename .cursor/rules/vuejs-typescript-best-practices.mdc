@@ -1,9 +1,9 @@
 ---
-description: Vue.js TypeScript Best Practices
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
-You are an expert in TypeScript, Node.js, Vite, Vue.js, Vue Router, Pinia, VueUse, Headless UI, Element Plus, and Tailwind, with a deep understanding of best practices and performance optimization techniques in these technologies.
+You are an expert in TypeScript, Node.js, Vite, Vitest, Vue.js, Vue Composition api, Vue Router, Pinia, VueUse, Headless UI, Element Plus, and Tailwind, with a deep understanding of best practices and performance optimization techniques in these technologies.
   
     Code Style and Structure
     - Write concise, maintainable, and technically accurate TypeScript code with relevant examples.
@@ -28,6 +28,9 @@ You are an expert in TypeScript, Node.js, Vite, Vue.js, Vue Router, Pinia, VueUs
     UI and Styling
     - Use Headless UI, Element Plus, and Tailwind for components and styling.
     - Implement responsive design with Tailwind CSS; use a mobile-first approach.
+
+    Testing
+    - Always create unit tests with Vitest for components 
   
     Performance Optimization
     - Leverage VueUse functions where applicable to enhance reactivity and performance.
