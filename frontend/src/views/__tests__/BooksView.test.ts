@@ -93,7 +93,11 @@ describe('BooksView', () => {
     expect(wrapper.text()).toContain('Test Book');
     expect(wrapper.text()).toContain('Test Author');
     expect(wrapper.text()).toContain('Test Series');
-    expect(wrapper.text()).toContain(pubDate.getFullYear().toString());
+    
+    // Check for the year in the book meta section
+    const bookMeta = wrapper.find('.book-meta');
+    expect(bookMeta.exists()).toBe(true);
+    expect(bookMeta.text()).toContain(pubDate.getFullYear().toString());
   });
 
   it('handles pagination', async () => {
