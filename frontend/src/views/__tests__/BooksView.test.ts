@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import BooksView from '../BooksView.vue';
 import { useBookStore } from '@/stores/book';
+import { faker } from '@faker-js/faker';
 
 // Mock the book store
 vi.mock('@/stores/book', () => ({
@@ -13,6 +14,7 @@ describe('BooksView', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    faker.seed(123);
   });
 
   it('renders loading state', () => {
@@ -34,7 +36,7 @@ describe('BooksView', () => {
   });
 
   it('renders error state', () => {
-    const errorMessage = 'Failed to fetch books';
+    const errorMessage = faker.lorem.sentence();
     const mockStore = {
       books: [],
       loading: false,
@@ -52,18 +54,19 @@ describe('BooksView', () => {
   });
 
   it('renders books grid', () => {
+    const pubDate = faker.date.past();
     const mockBooks = [
       {
         id: 1,
         title: 'Test Book',
         author: 'Test Author',
         publisher: 'Test Publisher',
-        pubdate: '2023-01-01',
+        pubdate: pubDate.toISOString(),
         isbn: '1234567890',
         path: '/path/to/book',
         has_cover: 1,
-        timestamp: '2023-01-01',
-        last_modified: '2023-01-01',
+        timestamp: faker.date.recent().toISOString(),
+        last_modified: faker.date.recent().toISOString(),
         series_index: 1,
         series: 'Test Series',
         language: 'en',
@@ -90,7 +93,7 @@ describe('BooksView', () => {
     expect(wrapper.text()).toContain('Test Book');
     expect(wrapper.text()).toContain('Test Author');
     expect(wrapper.text()).toContain('Test Series');
-    expect(wrapper.text()).toContain('2023');
+    expect(wrapper.text()).toContain(pubDate.getFullYear().toString());
   });
 
   it('handles pagination', async () => {
