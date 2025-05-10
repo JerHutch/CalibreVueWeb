@@ -1,10 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { Database } from 'sqlite3';
 import path from 'path';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config({ path: '.development.env' });
 
 export interface Book {
   id: number;
@@ -26,21 +22,8 @@ export interface Book {
 export class CalibreService {
   private db: Database;
 
-  constructor() {
-    const dbFilename = process.env.DB_FILENAME || 'metadata.db';
-    const dbPath = path.join(process.cwd(), dbFilename);
-    
-    if (!dbFilename) {
-      throw new Error('DB_FILENAME environment variable is not set');
-    }
-
-    this.db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error('Error connecting to database:', err);
-        throw err;
-      }
-      console.log('Connected to Calibre database:', dbPath);
-    });
+  constructor(db: Database) {
+    this.db = db;
   }
 
   async getBooks(page: number = 1, pageSize: number = 20): Promise<{ books: Book[], total: number }> {

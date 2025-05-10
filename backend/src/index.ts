@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { setupRoutes } from './routes';
-
-dotenv.config();
+import { CalibreService } from './services/calibreService';
+import { AuthService } from './services/authService';
+import { initializeController as initializeBookController } from './controllers/bookController';
+import { initializeController as initializeAuthController } from './controllers/authController';
+import { Database } from 'sqlite3';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -12,9 +14,20 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Setup routes and middleware
+// Initialize services
+const calibreDb = new Database(process.env.CALIBRE_DB_PATH || 'metadata.db');
+const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
+const calibreService = new CalibreService(calibreDb);
+const authService = new AuthService(appDb);
+
+// Initialize controllers
+initializeBookController(calibreService);
+initializeAuthController(authService);
+
+// Setup routes
 setupRoutes(app);
 
+// Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 }); 

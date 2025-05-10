@@ -2,16 +2,37 @@
   <div class="login-view">
     <div class="login-container">
       <h1>Login</h1>
+      <div v-if="authStore.error" class="error-message">
+        {{ authStore.error }}
+      </div>
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label for="username">Username</label>
-          <input type="text" id="username" v-model="username" required>
+          <input 
+            type="text" 
+            id="username" 
+            v-model="username" 
+            required
+            :disabled="isLoading"
+          >
         </div>
         <div class="form-group">
           <label for="password">Password</label>
-          <input type="password" id="password" v-model="password" required>
+          <input 
+            type="password" 
+            id="password" 
+            v-model="password" 
+            required
+            :disabled="isLoading"
+          >
         </div>
-        <button type="submit" class="login-button">Login</button>
+        <button 
+          type="submit" 
+          class="login-button"
+          :disabled="isLoading"
+        >
+          {{ isLoading ? 'Logging in...' : 'Login' }}
+        </button>
       </form>
     </div>
   </div>
@@ -19,13 +40,27 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+
+const router = useRouter();
+const authStore = useAuthStore();
 
 const username = ref('');
 const password = ref('');
+const isLoading = ref(false);
 
-const handleLogin = () => {
-  // Login logic will be implemented here
-  console.log('Login attempt:', { username: username.value, password: password.value });
+const handleLogin = async () => {
+  try {
+    isLoading.value = true;
+    await authStore.login(username.value, password.value);
+    router.push('/books');
+  } catch (error) {
+    // Error is handled by the store
+    console.error('Login failed:', error);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
@@ -66,6 +101,11 @@ const handleLogin = () => {
   border-radius: 4px;
 }
 
+.form-group input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .login-button {
   width: 100%;
   padding: 0.75rem;
@@ -76,7 +116,21 @@ const handleLogin = () => {
   cursor: pointer;
 }
 
-.login-button:hover {
+.login-button:hover:not(:disabled) {
   background-color: #45a049;
+}
+
+.login-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
 }
 </style> 
