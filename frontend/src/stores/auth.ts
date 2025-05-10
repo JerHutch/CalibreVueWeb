@@ -26,7 +26,8 @@ export const useAuthStore = defineStore('auth', {
       try {
         // TODO: Implement OAuth login
         // This will redirect to the OAuth provider
-        window.location.href = `/api/auth/${provider}`;
+        // window.location.href = `/api/auth/${provider}`;
+        
       } catch (error) {
         console.error('Login failed:', error);
         throw error;
