@@ -35,7 +35,8 @@ const router = createRouter({
     {
       path: '/pending',
       name: 'pending',
-      component: () => import('@/views/PendingView.vue')
+      component: () => import('@/views/PendingView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 });

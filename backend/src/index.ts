@@ -5,6 +5,7 @@ import { CalibreService } from './services/calibreService';
 import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
 import { initializeController as initializeAuthController } from './controllers/authController';
+import { initializeMiddleware } from './middleware/authMiddleware';
 import { Database } from 'sqlite3';
 
 const app = express();
@@ -20,9 +21,10 @@ const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
 const calibreService = new CalibreService(calibreDb);
 const authService = new AuthService(appDb);
 
-// Initialize controllers
+// Initialize controllers and middleware
 initializeBookController(calibreService);
 initializeAuthController(authService);
+initializeMiddleware(authService);
 
 // Setup routes
 setupRoutes(app);

@@ -1,6 +1,4 @@
-import sqlite3 from 'sqlite3';
-import { Database } from 'sqlite3';
-import path from 'path';
+import Database from 'better-sqlite3';
 
 export interface Book {
   id: number;
@@ -20,62 +18,53 @@ export interface Book {
 }
 
 export class CalibreService {
-  private db: Database;
+  private db: Database.Database;
 
-  constructor(db: Database) {
+  constructor(db: Database.Database) {
     this.db = db;
   }
 
   async getBooks(page: number = 1, pageSize: number = 20): Promise<{ books: Book[], total: number }> {
-    return new Promise((resolve, reject) => {
+    try {
       const offset = (page - 1) * pageSize;
       
       // First get total count
-      this.db.get('SELECT COUNT(*) as count FROM books', (err, result: any) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const countResult = this.db.prepare('SELECT COUNT(*) as count FROM books').get();
+      const total = countResult.count;
 
-        const total = result.count;
-
-        // Then get paginated books
-        const query = `
-          SELECT 
-            b.id,
-            b.title,
-            (SELECT GROUP_CONCAT(a.name, ', ') FROM books_authors_link bal 
-             JOIN authors a ON a.id = bal.author 
-             WHERE bal.book = b.id) as author,
-            b.publisher,
-            b.pubdate,
-            b.isbn,
-            b.path,
-            b.has_cover,
-            b.timestamp,
-            b.last_modified,
-            b.series_index,
-            (SELECT name FROM series WHERE id = b.series) as series,
-            b.language,
-            (SELECT format FROM data WHERE book = b.id LIMIT 1) as format
-          FROM books b
-          ORDER BY b.timestamp DESC
-          LIMIT ? OFFSET ?
-        `;
-        
-        this.db.all(query, [pageSize, offset], (err, rows: Book[]) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve({ books: rows, total });
-        });
-      });
-    });
+      // Then get paginated books
+      const query = `
+        SELECT 
+          b.id,
+          b.title,
+          (SELECT GROUP_CONCAT(a.name, ', ') FROM books_authors_link bal 
+           JOIN authors a ON a.id = bal.author 
+           WHERE bal.book = b.id) as author,
+          b.publisher,
+          b.pubdate,
+          b.isbn,
+          b.path,
+          b.has_cover,
+          b.timestamp,
+          b.last_modified,
+          b.series_index,
+          (SELECT name FROM series WHERE id = b.series) as series,
+          b.language,
+          (SELECT format FROM data WHERE book = b.id LIMIT 1) as format
+        FROM books b
+        ORDER BY b.timestamp DESC
+        LIMIT ? OFFSET ?
+      `;
+      
+      const books = this.db.prepare(query).all(pageSize, offset) as Book[];
+      return { books, total };
+    } finally {
+      this.db.close();
+    }
   }
 
   async getBookById(id: number): Promise<Book | null> {
-    return new Promise((resolve, reject) => {
+    try {
       const query = `
         SELECT 
           b.id,
@@ -98,17 +87,10 @@ export class CalibreService {
         WHERE b.id = ?
       `;
       
-      this.db.get(query, [id], (err, row: Book) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(row || null);
-      });
-    });
-  }
-
-  close() {
-    this.db.close();
+      const book = this.db.prepare(query).get(id) as Book | undefined;
+      return book || null;
+    } finally {
+      this.db.close();
+    }
   }
 } 

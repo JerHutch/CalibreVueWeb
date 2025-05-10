@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axios from 'axios';
+import api from '@/api/axios';
 
 interface User {
   id: string;
-  name: string;
+  username: string;
   email: string;
   isAdmin: boolean;
 }
@@ -22,12 +22,18 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username: string, password: string) {
     try {
       error.value = null;
-      const response = await axios.post('/api/auth/login', {
+      const response = await api.post('/auth/login', {
         username,
         password
       });
       
-      user.value = response.data.user;
+      const { user: userData, token } = response.data;
+      
+      // Save token to localStorage
+      localStorage.setItem('auth_token', token);
+      
+      // Set user data
+      user.value = userData;
       return response.data;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Login failed';
@@ -37,17 +43,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      await axios.post('/api/auth/logout');
-      reset();
+      await api.post('/auth/logout');
     } catch (err) {
       console.error('Logout failed:', err);
-      throw err;
+    } finally {
+      reset();
     }
   }
 
   async function checkAuth() {
     try {
-      const response = await axios.get('/api/auth/me');
+      const response = await api.get('/auth/me');
       user.value = response.data;
     } catch (err) {
       reset();
@@ -57,6 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
   function reset() {
     user.value = null;
     error.value = null;
+    localStorage.removeItem('auth_token');
   }
 
   return {
