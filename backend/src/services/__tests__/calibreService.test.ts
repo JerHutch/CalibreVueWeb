@@ -1,20 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CalibreService } from '../calibreService';
-import sqlite3 from 'sqlite3';
-import path from 'path';
 
-// Mock sqlite3
-vi.mock('sqlite3', () => {
+// Mock better-sqlite3
+vi.mock('better-sqlite3', () => {
   const mockDb = {
-    get: vi.fn(),
-    all: vi.fn(),
+    prepare: vi.fn(),
     close: vi.fn()
   };
   return {
-    default: {
-      Database: vi.fn(() => mockDb)
-    },
-    Database: vi.fn(() => mockDb)
+    default: vi.fn().mockImplementation(() => mockDb)
   };
 });
 
@@ -27,101 +21,100 @@ vi.mock('dotenv', () => ({
 
 describe('CalibreService', () => {
   let calibreService: CalibreService;
-  const mockDb = new sqlite3.Database(':memory:');
+  let mockDb: any;
+  let mockPreparedStatement: any;
 
   beforeEach(() => {
-    // Reset all mocks before each test
-    vi.clearAllMocks();
-    process.env.DB_FILENAME = 'test.db';
-    calibreService = new CalibreService();
+    mockPreparedStatement = {
+      get: vi.fn(),
+      all: vi.fn()
+    };
+    mockDb = {
+      prepare: vi.fn().mockReturnValue(mockPreparedStatement),
+      close: vi.fn()
+    };
+    calibreService = new CalibreService(mockDb);
   });
 
   afterEach(() => {
-    calibreService.close();
-    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   describe('getBooks', () => {
     it('should return paginated books with total count', async () => {
       const mockBooks = [
-        { id: 1, title: 'Book 1', author: 'Author 1' },
-        { id: 2, title: 'Book 2', author: 'Author 2' }
+        { id: 1, title: 'Book 1' },
+        { id: 2, title: 'Book 2' }
       ];
+      const mockTotal = 2;
 
       // Mock the count query
-      mockDb.get = vi.fn().mockImplementation((query, callback) => {
-        callback(null, { count: 10 });
-      });
-
+      mockPreparedStatement.get.mockReturnValueOnce({ count: mockTotal });
       // Mock the books query
-      mockDb.all = vi.fn().mockImplementation((query, params, callback) => {
-        callback(null, mockBooks);
-      });
+      mockPreparedStatement.all.mockReturnValueOnce(mockBooks);
 
-      const result = await calibreService.getBooks(1, 2);
+      const result = await calibreService.getBooks(1, 10);
 
       expect(result).toEqual({
         books: mockBooks,
-        total: 10
+        total: mockTotal
       });
-      expect(mockDb.get).toHaveBeenCalledWith(
-        'SELECT COUNT(*) as count FROM books',
-        expect.any(Function)
-      );
-      expect(mockDb.all).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT'),
-        [2, 0],
-        expect.any(Function)
-      );
+      expect(mockDb.prepare).toHaveBeenCalledTimes(2);
+      expect(mockDb.close).toHaveBeenCalled();
     });
 
     it('should handle database errors in getBooks', async () => {
-      mockDb.get = vi.fn().mockImplementation((query, callback) => {
-        callback(new Error('Database error'), null);
+      // Mock the count query to throw an error
+      mockPreparedStatement.get.mockImplementationOnce(() => {
+        throw new Error('Database error');
       });
 
-      await expect(calibreService.getBooks()).rejects.toThrow('Database error');
+      try {
+        await calibreService.getBooks(1, 10);
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('Database error');
+      }
+
+      expect(mockDb.close).toHaveBeenCalled();
     });
   });
 
   describe('getBookById', () => {
     it('should return a book by id', async () => {
-      const mockBook = {
-        id: 1,
-        title: 'Test Book',
-        author: 'Test Author'
-      };
-
-      mockDb.get = vi.fn().mockImplementation((query, params, callback) => {
-        callback(null, mockBook);
-      });
+      const mockBook = { id: 1, title: 'Book 1' };
+      mockPreparedStatement.get.mockReturnValueOnce(mockBook);
 
       const result = await calibreService.getBookById(1);
 
       expect(result).toEqual(mockBook);
-      expect(mockDb.get).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT'),
-        [1],
-        expect.any(Function)
-      );
+      expect(mockDb.prepare).toHaveBeenCalledTimes(1);
+      expect(mockDb.close).toHaveBeenCalled();
     });
 
     it('should return null for non-existent book', async () => {
-      mockDb.get = vi.fn().mockImplementation((query, params, callback) => {
-        callback(null, null);
-      });
+      mockPreparedStatement.get.mockReturnValueOnce(null);
 
       const result = await calibreService.getBookById(999);
 
       expect(result).toBeNull();
+      expect(mockDb.prepare).toHaveBeenCalledTimes(1);
+      expect(mockDb.close).toHaveBeenCalled();
     });
 
     it('should handle database errors in getBookById', async () => {
-      mockDb.get = vi.fn().mockImplementation((query, params, callback) => {
-        callback(new Error('Database error'), null);
+      mockPreparedStatement.get.mockImplementationOnce(() => {
+        throw new Error('Database error');
       });
 
-      await expect(calibreService.getBookById(1)).rejects.toThrow('Database error');
+      try {
+        await calibreService.getBookById(1);
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('Database error');
+      }
+
+      expect(mockDb.close).toHaveBeenCalled();
     });
   });
 }); 

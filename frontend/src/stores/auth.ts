@@ -1,58 +1,92 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import { ref, computed } from 'vue';
+import api from '@/api/axios';
 
 interface User {
   id: string;
-  name: string;
+  username: string;
   email: string;
   isAdmin: boolean;
 }
 
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-}
+const STORAGE_KEY = 'auth_user';
 
-export const useAuthStore = defineStore('auth', {
-  state: (): AuthState => ({
-    user: null,
-    isAuthenticated: false,
-    isAdmin: false
-  }),
+export const useAuthStore = defineStore('auth', () => {
+  // Initialize state from localStorage
+  const savedUser = localStorage.getItem(STORAGE_KEY);
+  const user = ref<User | null>(savedUser ? JSON.parse(savedUser) : null);
+  const error = ref<string | null>(null);
 
-  actions: {
-    async login(provider: string) {
-      try {
-        // TODO: Implement OAuth login
-        // This will redirect to the OAuth provider
-        // window.location.href = `/api/auth/${provider}`;
-        
-      } catch (error) {
-        console.error('Login failed:', error);
-        throw error;
-      }
-    },
+  // Computed
+  const isAuthenticated = computed(() => !!user.value);
+  const isAdmin = computed(() => user.value?.isAdmin ?? false);
 
-    async logout() {
-      try {
-        await axios.post('/api/auth/logout');
-        this.$reset();
-      } catch (error) {
-        console.error('Logout failed:', error);
-        throw error;
-      }
-    },
+  // Actions
+  async function login(username: string, password: string) {
+    try {
+      error.value = null;
+      const response = await api.post(`/auth/login`, {
+        username,
+        password
+      });
 
-    async checkAuth() {
-      try {
-        const response = await axios.get('/api/auth/me');
-        this.user = response.data;
-        this.isAuthenticated = true;
-        this.isAdmin = response.data.isAdmin;
-      } catch (error) {
-        this.$reset();
-      }
+      console.log('login response', response.data);
+      
+      const { user: userData, token } = response.data;
+      
+      // Save token and user data to localStorage
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+      
+      // Set user data
+      user.value = userData;
+      return response.data;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Login failed';
+      throw err;
     }
   }
+
+  async function logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
+      reset();
+    }
+  }
+
+  async function checkAuth() {
+    try {
+      const response = await api.get('/auth/me');
+      const userData = response.data;
+      user.value = userData;
+      // Update localStorage with fresh user data
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    } catch (err) {
+      reset();
+    }
+  }
+
+  function reset() {
+    user.value = null;
+    error.value = null;
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  return {
+    // State
+    user,
+    error,
+    // Computed
+    isAuthenticated,
+    isAdmin,
+    // Actions
+    login,
+    logout,
+    checkAuth,
+    reset
+  };
 }); 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axios from 'axios';
+import api from '@/api/axios';
 
 export interface Book {
   id: number;
@@ -36,7 +36,7 @@ export const useBookStore = defineStore('book', () => {
     loading.value = true;
     error.value = null;
     try {
-      const response = await axios.get('/api/books', {
+      const response = await api.get('/books', {
         params: { page, limit }
       });
       books.value = response.data.books;
