@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import BooksView from '../BooksView.vue';
-import { useBookStore } from '@/stores/book';
+import { useBookStore } from '../../stores/book';
 import { faker } from '@faker-js/faker';
 
 // Mock the book store
-vi.mock('@/stores/book', () => ({
+vi.mock('../../stores/book', () => ({
   useBookStore: vi.fn()
 }));
 
@@ -81,7 +81,9 @@ describe('BooksView', () => {
       currentPage: 1,
       pageSize: 20,
       totalPages: 1,
-      fetchBooks: vi.fn()
+      fetchBooks: vi.fn(),
+      getCoverUrl: vi.fn().mockReturnValue('/api/books/1/cover'),
+      getDownloadUrl: vi.fn().mockReturnValue('/api/books/1/download')
     };
 
     (useBookStore as any).mockReturnValue(mockStore);
@@ -94,10 +96,76 @@ describe('BooksView', () => {
     expect(wrapper.text()).toContain('Test Author');
     expect(wrapper.text()).toContain('Test Series');
     
+    // Check for cover image
+    const coverImg = wrapper.find('.book-cover img');
+    expect(coverImg.exists()).toBe(true);
+    expect(coverImg.attributes('src')).toBe('/api/books/1/cover');
+    expect(coverImg.attributes('alt')).toBe('Test Book');
+
+    // Check for download button
+    const downloadButton = wrapper.find('.download-button');
+    expect(downloadButton.exists()).toBe(true);
+    expect(downloadButton.attributes('href')).toBe('/api/books/1/download');
+    expect(downloadButton.text()).toBe('Download EPUB');
+    
     // Check for the year in the book meta section
     const bookMeta = wrapper.find('.book-meta');
     expect(bookMeta.exists()).toBe(true);
     expect(bookMeta.text()).toContain(pubDate.getFullYear().toString());
+  });
+
+  it('does not show cover for book without cover', () => {
+    const mockBooks = [{
+      id: 1,
+      title: 'Test Book',
+      author: 'Test Author',
+      has_cover: 0,
+      format: 'epub'
+    }];
+
+    const mockStore = {
+      books: mockBooks,
+      loading: false,
+      error: null,
+      currentPage: 1,
+      pageSize: 20,
+      totalPages: 1,
+      fetchBooks: vi.fn(),
+      getCoverUrl: vi.fn(),
+      getDownloadUrl: vi.fn().mockReturnValue('/api/books/1/download')
+    };
+
+    (useBookStore as any).mockReturnValue(mockStore);
+
+    const wrapper = mount(BooksView);
+    expect(wrapper.find('.book-cover').exists()).toBe(false);
+  });
+
+  it('does not show download button for book without format', () => {
+    const mockBooks = [{
+      id: 1,
+      title: 'Test Book',
+      author: 'Test Author',
+      has_cover: 1,
+      format: null
+    }];
+
+    const mockStore = {
+      books: mockBooks,
+      loading: false,
+      error: null,
+      currentPage: 1,
+      pageSize: 20,
+      totalPages: 1,
+      fetchBooks: vi.fn(),
+      getCoverUrl: vi.fn().mockReturnValue('/api/books/1/cover'),
+      getDownloadUrl: vi.fn()
+    };
+
+    (useBookStore as any).mockReturnValue(mockStore);
+
+    const wrapper = mount(BooksView);
+    expect(wrapper.find('.download-button').exists()).toBe(false);
   });
 
   it('handles pagination', async () => {

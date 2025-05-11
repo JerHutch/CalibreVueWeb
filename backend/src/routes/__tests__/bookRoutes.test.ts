@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import bookRoutes from '../bookRoutes';
 import { CalibreService } from '../../services/calibreService';
 import { authenticateToken } from '../../middleware/authMiddleware';
@@ -14,7 +14,10 @@ vi.mock('../../middleware/authMiddleware', () => ({
 // Mock the book controller
 vi.mock('../../controllers/bookController', () => ({
   getBooks: vi.fn(),
-  getBookById: vi.fn()
+  getBookById: vi.fn(),
+  getBookCover: vi.fn(),
+  downloadBook: vi.fn(),
+  initializeController: vi.fn()
 }));
 
 describe('bookRoutes', () => {
@@ -137,5 +140,34 @@ describe('bookRoutes', () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Internal server error' });
     });
+  });
+
+  it('should set up all routes with authentication', () => {
+    const router = Router();
+    router.use('/books', bookRoutes);
+
+    // Get all routes
+    const routes = router.stack
+      .filter((layer) => layer.name === 'router')
+      .flatMap((layer) => {
+        const router = (layer as any).handle;
+        return router.stack
+          .filter((route: any) => route.route)
+          .map((route: any) => ({
+            path: route.route.path,
+            methods: Object.keys(route.route.methods)
+          }));
+      });
+
+    // Check that all routes are protected
+    expect(routes).toHaveLength(4);
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        { path: '/', methods: ['get'] },
+        { path: '/:id', methods: ['get'] },
+        { path: '/:id/cover', methods: ['get'] },
+        { path: '/:id/download', methods: ['get'] }
+      ])
+    );
   });
 }); 

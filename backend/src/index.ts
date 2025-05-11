@@ -18,9 +18,10 @@ app.use(express.json());
 app.use(requestLogger);
 
 // Initialize services
-const calibreDb = new Database(process.env.CALIBRE_DB_PATH || 'metadata.db', { fileMustExist: true });
+const calibreDbPath = process.env.CALIBRE_DB_PATH || 'metadata.db';
+const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
 const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
-const calibreService = new CalibreService(calibreDb);
+const calibreService = new CalibreService(calibreDb, calibreDbPath);
 const authService = new AuthService(appDb);
 
 // Initialize controllers and middleware

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/api/axios';
+import { useFileDownload } from '@/composables/useFileDownload';
 
 export interface Book {
   id: number;
@@ -28,6 +29,9 @@ export const useBookStore = defineStore('book', () => {
   const currentPage = ref(1);
   const pageSize = ref(20);
 
+  // File download composable
+  const { downloadFile, isDownloading, downloadError, downloadProgress } = useFileDownload();
+
   // Computed
   const totalPages = computed(() => Math.ceil(total.value / pageSize.value));
 
@@ -51,6 +55,23 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
+  // Helper functions
+  async function getCoverUrl(bookId: number): Promise<string> {
+    try {
+      const response = await api.get(`/books/${bookId}/cover`, {
+        responseType: 'blob'
+      });
+      return URL.createObjectURL(response.data);
+    } catch (err) {
+      console.error('Error fetching book cover:', err);
+      return '';
+    }
+  }
+
+  async function downloadBook(bookId: number, filename: string) {
+    return downloadFile(`/books/${bookId}/download`, { filename });
+  }
+
   return {
     // State
     books,
@@ -59,9 +80,16 @@ export const useBookStore = defineStore('book', () => {
     error,
     currentPage,
     pageSize,
+    // Download state
+    isDownloading,
+    downloadError,
+    downloadProgress,
     // Computed
     totalPages,
     // Actions
-    fetchBooks
+    fetchBooks,
+    // Helper functions
+    getCoverUrl,
+    downloadBook
   };
 }); 

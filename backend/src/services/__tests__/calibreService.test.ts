@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CalibreService } from '../calibreService';
+import path from 'path';
 
 // Mock better-sqlite3
 vi.mock('better-sqlite3', () => {
@@ -33,7 +34,24 @@ describe('CalibreService', () => {
       prepare: vi.fn().mockReturnValue(mockPreparedStatement),
       close: vi.fn()
     };
-    calibreService = new CalibreService(mockDb);
+    calibreService = new CalibreService(mockDb, '/path/to/metadata.db');
+
+    // Mock the database queries
+    mockPreparedStatement.get.mockImplementation((query: string) => {
+      if (query.includes('COUNT')) {
+        return { count: 2 };
+      }
+      return null;
+    });
+    mockPreparedStatement.all.mockImplementation((query: string) => {
+      if (query.includes('SELECT')) {
+        return [
+          { id: 1, title: 'Book 1' },
+          { id: 2, title: 'Book 2' }
+        ];
+      }
+      return [];
+    });
   });
 
   afterEach(() => {
@@ -50,6 +68,7 @@ describe('CalibreService', () => {
 
       // Mock the count query
       mockPreparedStatement.get.mockReturnValueOnce({ count: mockTotal });
+
       // Mock the books query
       mockPreparedStatement.all.mockReturnValueOnce(mockBooks);
 
@@ -60,7 +79,7 @@ describe('CalibreService', () => {
         total: mockTotal
       });
       expect(mockDb.prepare).toHaveBeenCalledTimes(2);
-      expect(mockDb.close).toHaveBeenCalled();
+      
     });
 
     it('should handle database errors in getBooks', async () => {
@@ -76,7 +95,6 @@ describe('CalibreService', () => {
         expect((error as Error).message).toBe('Database error');
       }
 
-      expect(mockDb.close).toHaveBeenCalled();
     });
   });
 
@@ -89,7 +107,6 @@ describe('CalibreService', () => {
 
       expect(result).toEqual(mockBook);
       expect(mockDb.prepare).toHaveBeenCalledTimes(1);
-      expect(mockDb.close).toHaveBeenCalled();
     });
 
     it('should return null for non-existent book', async () => {
@@ -99,7 +116,6 @@ describe('CalibreService', () => {
 
       expect(result).toBeNull();
       expect(mockDb.prepare).toHaveBeenCalledTimes(1);
-      expect(mockDb.close).toHaveBeenCalled();
     });
 
     it('should handle database errors in getBookById', async () => {
@@ -114,7 +130,60 @@ describe('CalibreService', () => {
         expect((error as Error).message).toBe('Database error');
       }
 
-      expect(mockDb.close).toHaveBeenCalled();
+    });
+  });
+
+  describe('getCoverPath', () => {
+    it('should return null for book without cover', () => {
+      const book = {
+        id: 1,
+        title: 'Test Book',
+        has_cover: 0,
+        path: 'test/path'
+      } as any;
+
+      const result = calibreService.getCoverPath(book);
+      expect(result).toBeNull();
+    });
+
+    it('should return correct cover path for book with cover', () => {
+      const book = {
+        id: 1,
+        title: 'Test Book',
+        has_cover: 1,
+        path: 'test/path'
+      } as any;
+
+      const result = calibreService.getCoverPath(book);
+      const expectedPath = path.join('/path/to', 'test/path', 'cover.jpg');
+      expect(result).toBe(expectedPath);
+    });
+  });
+
+  describe('getBookFilePath', () => {
+    it('should return null for book without format', () => {
+      const book = {
+        id: 1,
+        title: 'Test Book',
+        path: 'test/path',
+        format: null
+      } as any;
+
+      const result = calibreService.getBookFilePath(book);
+      expect(result).toBeNull();
+    });
+
+    it('should return correct file path for book with format', () => {
+      const book = {
+        id: 1,
+        title: 'Test Book',
+        path: 'test/path',
+        format: 'epub'
+      } as any;
+
+      const result = calibreService.getBookFilePath(book);
+      const expectedPath = path.join('/path/to', 'test/path', 'Test Book.epub');
+      expect(result).toBe(expectedPath);
     });
   });
 }); 

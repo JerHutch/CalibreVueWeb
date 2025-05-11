@@ -117,4 +117,22 @@ describe('Book Store', () => {
       expect(store.totalPages).toBe(2);
     });
   });
+
+  describe('getCoverUrl', () => {
+    it('should return correct cover URL', () => {
+      const store = useBookStore();
+      const bookId = 123;
+      const url = store.getCoverUrl(bookId);
+      expect(url).toBe('/api/books/123/cover');
+    });
+  });
+
+  describe('getDownloadUrl', () => {
+    it('should return correct download URL', () => {
+      const store = useBookStore();
+      const bookId = 123;
+      const url = store.getDownloadUrl(bookId);
+      expect(url).toBe('/api/books/123/download');
+    });
+  });
 }); 
