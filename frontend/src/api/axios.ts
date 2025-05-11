@@ -1,7 +1,8 @@
 import axios from 'axios';
+import appConfig from '@/app.config.json';
 
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: appConfig.apiUrl
 });
 
 // Request interceptor to add auth token
@@ -25,7 +26,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Clear token and redirect to login on auth errors
       localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      // window.location.href = '/login';
     }
     return Promise.reject(error);
   }

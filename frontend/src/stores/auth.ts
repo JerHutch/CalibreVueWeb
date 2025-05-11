@@ -9,9 +9,12 @@ interface User {
   isAdmin: boolean;
 }
 
+const STORAGE_KEY = 'auth_user';
+
 export const useAuthStore = defineStore('auth', () => {
-  // State
-  const user = ref<User | null>(null);
+  // Initialize state from localStorage
+  const savedUser = localStorage.getItem(STORAGE_KEY);
+  const user = ref<User | null>(savedUser ? JSON.parse(savedUser) : null);
   const error = ref<string | null>(null);
 
   // Computed
@@ -22,7 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username: string, password: string) {
     try {
       error.value = null;
-      const response = await api.post('/auth/login', {
+      const response = await api.post(`/auth/login`, {
         username,
         password
       });
@@ -31,8 +34,9 @@ export const useAuthStore = defineStore('auth', () => {
       
       const { user: userData, token } = response.data;
       
-      // Save token to localStorage
+      // Save token and user data to localStorage
       localStorage.setItem('auth_token', token);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
       
       // Set user data
       user.value = userData;
@@ -56,7 +60,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function checkAuth() {
     try {
       const response = await api.get('/auth/me');
-      user.value = response.data;
+      const userData = response.data;
+      user.value = userData;
+      // Update localStorage with fresh user data
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
     } catch (err) {
       reset();
     }
@@ -66,6 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null;
     error.value = null;
     localStorage.removeItem('auth_token');
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   return {

@@ -1,0 +1,5 @@
+{
+    "apiUrl": "/api",
+    "apiPort": 3000,
+    "apiHost": "localhost"
+}

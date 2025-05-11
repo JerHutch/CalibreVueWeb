@@ -26,6 +26,9 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   if (req.body && Object.keys(req.body).length > 0) {
     console.log('Body:', JSON.stringify(maskSensitiveData(req.body), null, 2));
   }
+  // log blank line
+  console.log('');
+  
 
   // Log response details when the response is finished
   res.on('finish', () => {
