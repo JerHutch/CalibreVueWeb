@@ -28,6 +28,7 @@ export const useBookStore = defineStore('book', () => {
   const error = ref<string | null>(null);
   const currentPage = ref(1);
   const pageSize = ref(20);
+  const searchQuery = ref('');
 
   // File download composable
   const { downloadFile, isDownloading, downloadError, downloadProgress } = useFileDownload();
@@ -41,7 +42,11 @@ export const useBookStore = defineStore('book', () => {
     error.value = null;
     try {
       const response = await api.get('/books', {
-        params: { page, limit }
+        params: { 
+          page, 
+          limit,
+          search: searchQuery.value 
+        }
       });
       books.value = response.data.books;
       total.value = response.data.total;
@@ -53,6 +58,11 @@ export const useBookStore = defineStore('book', () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  function setSearchQuery(query: string) {
+    searchQuery.value = query;
+    fetchBooks(1); // Reset to first page when searching
   }
 
   // Helper functions
@@ -80,6 +90,7 @@ export const useBookStore = defineStore('book', () => {
     error,
     currentPage,
     pageSize,
+    searchQuery,
     // Download state
     isDownloading,
     downloadError,
@@ -88,6 +99,7 @@ export const useBookStore = defineStore('book', () => {
     totalPages,
     // Actions
     fetchBooks,
+    setSearchQuery,
     // Helper functions
     getCoverUrl,
     downloadBook

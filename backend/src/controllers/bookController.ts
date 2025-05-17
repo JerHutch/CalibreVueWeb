@@ -13,8 +13,9 @@ export const getBooks = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string | undefined;
     
-    const result = await calibreService.getBooks(page, limit);
+    const result = await calibreService.getBooks(page, limit, search);
     res.json(result);
   } catch (error) {
     console.error('Error fetching books:', error);
@@ -54,6 +55,7 @@ export const getBookCover = async (req: Request, res: Response) => {
     }
 
     const coverPath = calibreService.getCoverPath(book);
+    console.log('coverPath', coverPath);
     if (!coverPath) {
       return res.status(404).json({ error: 'Cover not found' });
     }
@@ -84,6 +86,7 @@ export const downloadBook = async (req: Request, res: Response) => {
     }
 
     const filePath = calibreService.getBookFilePath(book);
+    console.log('filePath', filePath);
     if (!filePath) {
       return res.status(404).json({ error: 'Book file not found' });
     }

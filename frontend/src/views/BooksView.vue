@@ -2,6 +2,16 @@
   <div class="books-view">
     <h1>Books</h1>
     
+    <div class="search-container">
+      <input
+        type="text"
+        v-model="searchInput"
+        @input="handleSearch"
+        placeholder="Search by title or author..."
+        class="search-input"
+      />
+    </div>
+
     <div v-if="bookStore.loading" class="loading">
       Loading books...
     </div>
@@ -37,11 +47,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useBookStore } from '@/stores/book';
 import BookCard from '@/components/BookCard.vue';
 
 const bookStore = useBookStore();
+const searchInput = ref('');
+
+const handleSearch = () => {
+  bookStore.setSearchQuery(searchInput.value);
+};
 
 onMounted(() => {
   bookStore.fetchBooks();
@@ -51,6 +66,27 @@ onMounted(() => {
 <style scoped>
 .books-view {
   padding: 1rem;
+}
+
+.search-container {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 500px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4CAF50;
 }
 
 .books-grid {

@@ -32,12 +32,34 @@ export class CalibreService {
     this.basePath = path.dirname(dbPath);
   }
 
-  async getBooks(page: number = 1, pageSize: number = 20): Promise<{ books: Book[], total: number }> {
+  async getBooks(page: number = 1, pageSize: number = 20, search?: string): Promise<{ books: Book[], total: number }> {
     const offset = (page - 1) * pageSize;
     
+    // Build the WHERE clause for search
+    let whereClause = '';
+    let params: any[] = [];
+    
+    if (search) {
+      whereClause = `
+        WHERE b.title LIKE ? 
+        OR EXISTS (
+          SELECT 1 FROM books_authors_link bal 
+          JOIN authors a ON a.id = bal.author 
+          WHERE bal.book = b.id AND a.name LIKE ?
+        )
+      `;
+      const searchPattern = `%${search}%`;
+      params = [searchPattern, searchPattern];
+    }
+
     // First get total count
-    const countStmt = this.db.prepare('SELECT COUNT(*) as count FROM books');
-    const countResult = countStmt.get() as { count: number };
+    const countQuery = `
+      SELECT COUNT(*) as count 
+      FROM books b
+      ${whereClause}
+    `;
+    const countStmt = this.db.prepare(countQuery);
+    const countResult = countStmt.get(...params) as { count: number };
     const total = countResult.count;
     console.log(`Total books: ${total}`);
 
@@ -60,12 +82,13 @@ export class CalibreService {
         b.last_modified,
         (SELECT format FROM data WHERE book = b.id LIMIT 1) as format
       FROM books b
+      ${whereClause}
       ORDER BY b.timestamp DESC
       LIMIT ? OFFSET ?
     `;
     
     const booksStmt = this.db.prepare(query);
-    const books = booksStmt.all(pageSize, offset) as Book[];
+    const books = booksStmt.all(...params, pageSize, offset) as Book[];
     console.log(`Found ${books.length} books`);
     if (books.length > 0) {
       console.log('First book:', books[0]);
@@ -111,6 +134,7 @@ export class CalibreService {
     if (!book.format) {
       return null;
     }
-    return path.join(this.basePath, book.path, `${book.title}.${book.format}`);
+    const author = book.author.split('| ').map(name => name.trim()).join(', ');
+    return path.join(this.basePath, book.path, `${book.title} - ${author}.${book.format}`);
   }
 } 

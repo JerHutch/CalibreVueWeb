@@ -68,7 +68,7 @@ describe('bookController', () => {
 
       await getBooks(mockRequest as Request, mockResponse as Response);
 
-      expect(mockService.getBooks).toHaveBeenCalledWith(1, 20);
+      expect(mockService.getBooks).toHaveBeenCalledWith(1, 20, undefined);
       expect(mockResponse.json).toHaveBeenCalledWith(mockBooks);
     });
 
@@ -83,7 +83,37 @@ describe('bookController', () => {
 
       await getBooks(mockRequest as Request, mockResponse as Response);
 
-      expect(mockService.getBooks).toHaveBeenCalledWith(2, 10);
+      expect(mockService.getBooks).toHaveBeenCalledWith(2, 10, undefined);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockBooks);
+    });
+
+    it('should handle search parameter', async () => {
+      const mockBooks = {
+        books: [{ id: 1, title: 'Harry Potter' }],
+        total: 1
+      };
+
+      mockRequest.query = { search: 'Harry' };
+      (mockService.getBooks as any).mockResolvedValue(mockBooks);
+
+      await getBooks(mockRequest as Request, mockResponse as Response);
+
+      expect(mockService.getBooks).toHaveBeenCalledWith(1, 20, 'Harry');
+      expect(mockResponse.json).toHaveBeenCalledWith(mockBooks);
+    });
+
+    it('should handle search with pagination', async () => {
+      const mockBooks = {
+        books: [{ id: 1, title: 'Harry Potter' }],
+        total: 1
+      };
+
+      mockRequest.query = { page: '2', limit: '10', search: 'Harry' };
+      (mockService.getBooks as any).mockResolvedValue(mockBooks);
+
+      await getBooks(mockRequest as Request, mockResponse as Response);
+
+      expect(mockService.getBooks).toHaveBeenCalledWith(2, 10, 'Harry');
       expect(mockResponse.json).toHaveBeenCalledWith(mockBooks);
     });
 
