@@ -2,6 +2,16 @@
   <div class="books-view">
     <h1>Books</h1>
     
+    <div class="search-container">
+      <input
+        type="text"
+        v-model="searchInput"
+        @input="handleSearch"
+        placeholder="Search by title or author..."
+        class="search-input"
+      />
+    </div>
+
     <div v-if="bookStore.loading" class="loading">
       Loading books...
     </div>
@@ -10,53 +20,42 @@
       {{ bookStore.error }}
     </div>
     
-    <div v-else>
-      <div class="books-grid">
-        <div v-for="book in bookStore.books" :key="book.id" class="book-card">
-          <div class="book-cover" v-if="book.has_cover">
-            <img :src="`/api/books/${book.id}/cover`" :alt="book.title">
-          </div>
-          <div class="book-info">
-            <h3>{{ book.title }}</h3>
-            <p class="author">{{ book.author }}</p>
-            <p v-if="book.series" class="series">
-              {{ book.series }} #{{ book.series_index }}
-            </p>
-            <div class="book-meta">
-              <span v-if="book.publisher">{{ book.publisher }}</span>
-              <span v-if="book.pubdate">{{ new Date(book.pubdate).getFullYear() }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div v-else class="books-grid">
+      <BookCard
+        v-for="book in bookStore.books"
+        :key="book.id"
+        :book="book"
+      />
+    </div>
 
-      <div class="pagination">
-        <button 
-          :disabled="bookStore.currentPage === 1"
-          @click="changePage(bookStore.currentPage - 1)"
-        >
-          Previous
-        </button>
-        <span>Page {{ bookStore.currentPage }} of {{ bookStore.totalPages }}</span>
-        <button 
-          :disabled="bookStore.currentPage >= bookStore.totalPages"
-          @click="changePage(bookStore.currentPage + 1)"
-        >
-          Next
-        </button>
-      </div>
+    <div class="pagination">
+      <button 
+        :disabled="bookStore.currentPage === 1"
+        @click="bookStore.fetchBooks(bookStore.currentPage - 1)"
+      >
+        Previous
+      </button>
+      <span>Page {{ bookStore.currentPage }} of {{ bookStore.totalPages }}</span>
+      <button 
+        :disabled="bookStore.currentPage === bookStore.totalPages"
+        @click="bookStore.fetchBooks(bookStore.currentPage + 1)"
+      >
+        Next
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useBookStore } from '@/stores/book';
+import BookCard from '@/components/BookCard.vue';
 
 const bookStore = useBookStore();
+const searchInput = ref('');
 
-const changePage = (page: number) => {
-  bookStore.fetchBooks(page, bookStore.pageSize);
+const handleSearch = () => {
+  bookStore.setSearchQuery(searchInput.value);
 };
 
 onMounted(() => {
@@ -66,77 +65,45 @@ onMounted(() => {
 
 <style scoped>
 .books-view {
-  padding: 2rem;
+  padding: 1rem;
+}
+
+.search-container {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 500px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
 }
 
 .loading, .error {
   text-align: center;
   padding: 2rem;
-  font-size: 1.2rem;
+  color: #666;
 }
 
 .error {
   color: #dc3545;
-}
-
-.books-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-.book-card {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  transition: transform 0.2s;
-}
-
-.book-card:hover {
-  transform: translateY(-4px);
-}
-
-.book-cover {
-  aspect-ratio: 2/3;
-  background: #f5f5f5;
-  overflow: hidden;
-}
-
-.book-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.book-info {
-  padding: 1rem;
-}
-
-.book-info h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-  line-height: 1.4;
-}
-
-.author {
-  color: #666;
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-}
-
-.series {
-  color: #2c3e50;
-  font-size: 0.9rem;
-  margin: 0 0 0.5rem;
-}
-
-.book-meta {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.8rem;
-  color: #666;
 }
 
 .pagination {
@@ -149,7 +116,7 @@ onMounted(() => {
 
 .pagination button {
   padding: 0.5rem 1rem;
-  background-color: #2c3e50;
+  background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 4px;
@@ -157,12 +124,11 @@ onMounted(() => {
 }
 
 .pagination button:disabled {
-  background-color: #ccc;
+  background-color: #cccccc;
   cursor: not-allowed;
 }
 
 .pagination span {
-  font-size: 0.9rem;
   color: #666;
 }
 </style> 

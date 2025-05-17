@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/api/axios';
+import { useFileDownload } from '@/composables/useFileDownload';
 
 export interface Book {
   id: number;
@@ -27,6 +28,10 @@ export const useBookStore = defineStore('book', () => {
   const error = ref<string | null>(null);
   const currentPage = ref(1);
   const pageSize = ref(20);
+  const searchQuery = ref('');
+
+  // File download composable
+  const { downloadFile, isDownloading, downloadError, downloadProgress } = useFileDownload();
 
   // Computed
   const totalPages = computed(() => Math.ceil(total.value / pageSize.value));
@@ -37,7 +42,11 @@ export const useBookStore = defineStore('book', () => {
     error.value = null;
     try {
       const response = await api.get('/books', {
-        params: { page, limit }
+        params: { 
+          page, 
+          limit,
+          search: searchQuery.value 
+        }
       });
       books.value = response.data.books;
       total.value = response.data.total;
@@ -51,6 +60,28 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
+  function setSearchQuery(query: string) {
+    searchQuery.value = query;
+    fetchBooks(1); // Reset to first page when searching
+  }
+
+  // Helper functions
+  async function getCoverUrl(bookId: number): Promise<string> {
+    try {
+      const response = await api.get(`/books/${bookId}/cover`, {
+        responseType: 'blob'
+      });
+      return URL.createObjectURL(response.data);
+    } catch (err) {
+      console.error('Error fetching book cover:', err);
+      return '';
+    }
+  }
+
+  async function downloadBook(bookId: number, filename: string) {
+    return downloadFile(`/books/${bookId}/download`, { filename });
+  }
+
   return {
     // State
     books,
@@ -59,9 +90,18 @@ export const useBookStore = defineStore('book', () => {
     error,
     currentPage,
     pageSize,
+    searchQuery,
+    // Download state
+    isDownloading,
+    downloadError,
+    downloadProgress,
     // Computed
     totalPages,
     // Actions
-    fetchBooks
+    fetchBooks,
+    setSearchQuery,
+    // Helper functions
+    getCoverUrl,
+    downloadBook
   };
 }); 
