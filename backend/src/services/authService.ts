@@ -7,6 +7,9 @@ export interface User {
   username: string;
   email: string;
   isAdmin: boolean;
+  googleId?: string;
+  displayName?: string;
+  picture?: string;
 }
 
 interface UserRow {
@@ -14,7 +17,9 @@ interface UserRow {
   username: string;
   email: string;
   is_admin: number;
-  password: string;
+  google_id?: string;
+  display_name?: string;
+  picture?: string;
 }
 
 export class AuthService {
@@ -26,42 +31,6 @@ export class AuthService {
     this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
   }
 
-  async validateUser(username: string, password: string): Promise<User | null> {
-    console.log(`Attempting to validate user: ${username}`);
-    
-    try {
-      const stmt = this.db.prepare('SELECT * FROM users WHERE username = ?');
-      const row = stmt.get(username) as UserRow | undefined;
-
-      if (!row) {
-        console.log(`No user found with username: ${username}`);
-        return null;
-      }
-
-      console.log(`Found user in database: ${username} ${row.id}`);
-      console.log('Comparing passwords...');
-      
-      // const isValid = await bcrypt.compare(password, row.password);
-      const isValid = password === row.password;
-      console.log(`Password comparison result: ${isValid}`);
-      
-      if (!isValid) {
-        console.log(`Invalid password for user: ${username}`);
-        return null;
-      }
-
-      console.log(`Successfully validated user: ${username}`);
-      return {
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        isAdmin: row.is_admin === 1
-      };
-    } catch (error) {
-      console.error('Database error during user validation:', error);
-      throw error;
-    }
-  }
 
   generateToken(user: User): string {
     return jwt.sign(
@@ -103,6 +72,67 @@ export class AuthService {
     try {
       return jwt.verify(token, this.JWT_SECRET);
     } catch (error) {
+      return null;
+    }
+  }
+
+  async findOrCreateUser(profile: any): Promise<User | null> {
+    try {
+      // Check if user exists with this Google ID
+      const stmt = this.db.prepare('SELECT * FROM users WHERE google_id = ?');
+      let row = stmt.get(profile.id) as UserRow | undefined;
+
+      if (!row) {
+        // Check if user exists with this email
+        const emailStmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
+        row = emailStmt.get(profile.emails[0].value) as UserRow | undefined;
+
+        if (!row) {
+          // Create new user
+          const insertStmt = this.db.prepare(`
+            INSERT INTO users (username, email, google_id, display_name, picture, is_admin)
+            VALUES (?, ?, ?, ?, ?, 0)
+          `);
+          
+          const result = insertStmt.run(
+            profile.emails[0].value.split('@')[0],
+            profile.emails[0].value,
+            profile.id,
+            profile.displayName,
+            profile.photos?.[0]?.value
+          );
+
+          // Get the newly created user
+          const newUserStmt = this.db.prepare('SELECT * FROM users WHERE id = ?');
+          row = newUserStmt.get(result.lastInsertRowid) as UserRow;
+        } else {
+          // Update existing user with Google info
+          const updateStmt = this.db.prepare(`
+            UPDATE users 
+            SET google_id = ?, display_name = ?, picture = ?
+            WHERE id = ?
+          `);
+          
+          updateStmt.run(
+            profile.id,
+            profile.displayName,
+            profile.photos?.[0]?.value,
+            row.id
+          );
+        }
+      }
+
+      return {
+        id: row.id,
+        username: row.username,
+        email: row.email,
+        isAdmin: row.is_admin === 1,
+        googleId: row.google_id,
+        displayName: row.display_name,
+        picture: row.picture
+      };
+    } catch (error) {
+      console.error('Error in findOrCreateUser:', error);
       return null;
     }
   }

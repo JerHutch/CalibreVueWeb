@@ -6,7 +6,8 @@ import { setupRoutes } from './routes';
 import { CalibreService } from './services/calibreService';
 import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
-import { initializeController as initializeAuthController } from './controllers/authController';
+// import { initializeController as initializeAuthController } from './controllers/authController';
+import { initializeController as initializeGoogleAuthController } from './controllers/googleAuthController';
 import { initializeMiddleware } from './middleware/authMiddleware';
 import { requestLogger } from './middleware/loggingMiddleware';
 import Database from 'better-sqlite3';
@@ -31,9 +32,9 @@ const authService = new AuthService(appDb);
 
 // Initialize controllers and middleware
 initializeBookController(calibreService);
-initializeAuthController(authService);
+// initializeAuthController(authService);
 initializeMiddleware(authService);
-
+initializeGoogleAuthController(authService);
 // Setup routes
 setupRoutes(app);
 
