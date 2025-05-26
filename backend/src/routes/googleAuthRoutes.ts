@@ -3,7 +3,7 @@ import { authenticateGoogle, handleGoogleCallback, redirectAfterAuth } from '../
 
 const router = Router();
 
-router.get('/google', authenticateGoogle());
-router.get('/google/callback', handleGoogleCallback(), redirectAfterAuth);
+router.get('/', authenticateGoogle());
+router.get('/callback', handleGoogleCallback(), redirectAfterAuth);
 
 export default router;

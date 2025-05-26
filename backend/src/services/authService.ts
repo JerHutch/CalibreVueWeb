@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 export interface User {

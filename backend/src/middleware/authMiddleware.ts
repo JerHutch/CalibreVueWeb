@@ -9,6 +9,12 @@ export const initializeMiddleware = (service: AuthService) => {
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Check for session-based auth first (Passport)
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
+      return next();
+    }
+
+    // Fall back to token-based auth
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No token provided' });
@@ -39,6 +45,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: any;
+      isAuthenticated?(): boolean;
     }
   }
 } 

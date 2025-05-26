@@ -36,6 +36,12 @@ export const logout = (req: Request, res: Response) => {
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   try {
+    // If using session-based auth (Passport)
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
+      return res.json(req.user);
+    }
+    
+    // If using token-based auth
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No token provided' });

@@ -5,6 +5,10 @@ const router = createRouter({
   history: createWebHistory('/'),
   routes: [
     {
+      path: '/',
+      redirect: { name: 'books' }
+    },
+    {
       path: '/books',
       name: 'books',
       component: () => import('@/views/BooksView.vue'),
@@ -26,6 +30,11 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/OAuthLoginView.vue')
+    },
+    {
+      path: '/auth/google/callback',
+      name: 'google-callback',
+      component: () => import('@/views/GoogleCallbackView.vue')
     },
     {
       path: '/pending',

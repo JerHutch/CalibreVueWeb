@@ -47,5 +47,7 @@ export function handleGoogleCallback() {
 }
 
 export function redirectAfterAuth(req: Request, res: Response) {
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
+    var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    var redirectUrl = `${baseUrl}/auth/google/callback`;
+    res.redirect(redirectUrl);
 }
