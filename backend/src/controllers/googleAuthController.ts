@@ -4,6 +4,8 @@ import { Request, Response } from 'express';
 
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
+let authService: AuthService;
+
 export function initializeController(authService: AuthService) {
     // Configure passport serialization
     passport.serializeUser((user: any, done) => {
@@ -45,5 +47,5 @@ export function handleGoogleCallback() {
 }
 
 export function redirectAfterAuth(req: Request, res: Response) {
-    res.redirect('/');
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
 }

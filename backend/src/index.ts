@@ -1,4 +1,5 @@
 import express from 'express';
+import session from 'express-session';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -6,9 +7,7 @@ import { setupRoutes } from './routes';
 import { CalibreService } from './services/calibreService';
 import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
-// import { initializeController as initializeAuthController } from './controllers/authController';
 import { initializeController as initializeGoogleAuthController } from './controllers/googleAuthController';
-import { initializeMiddleware } from './middleware/authMiddleware';
 import { requestLogger } from './middleware/loggingMiddleware';
 import Database from 'better-sqlite3';
 
@@ -23,6 +22,18 @@ app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
 
+// configure session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+
 // Initialize services
 const calibreDbPath = process.env.CALIBRE_DB_PATH || 'bob.db';
 const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
@@ -32,8 +43,6 @@ const authService = new AuthService(appDb);
 
 // Initialize controllers and middleware
 initializeBookController(calibreService);
-// initializeAuthController(authService);
-initializeMiddleware(authService);
 initializeGoogleAuthController(authService);
 // Setup routes
 setupRoutes(app);

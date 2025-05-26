@@ -37,8 +37,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useBookStore } from '@/stores/book';
-import type { Book } from '@/stores/book';
+import { useBookStore } from '@/stores/bookStore';
+import type { Book } from '@/stores/bookStore';
 
 const props = defineProps<{
   book: Book;

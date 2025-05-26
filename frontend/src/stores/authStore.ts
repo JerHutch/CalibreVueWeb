@@ -7,6 +7,9 @@ interface User {
   username: string;
   email: string;
   isAdmin: boolean;
+  googleId?: string;
+  displayName?: string;
+  picture?: string;
 }
 
 const STORAGE_KEY = 'auth_user';
