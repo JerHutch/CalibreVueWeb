@@ -17,6 +17,18 @@ import Database from 'better-sqlite3';
 // Load environment variables from .development.env
 dotenv.config({ path: path.join(__dirname, '..', '.development.env') });
 
+// // Log all environment variables
+// console.log('Environment Variables:');
+// console.log('---------------------');
+// Object.keys(process.env).forEach(key => {
+//     // Mask sensitive values
+//     const value = ['SESSION_SECRET', 'GOOGLE_CLIENT_SECRET'].includes(key) 
+//         ? '********' 
+//         : process.env[key];
+//     console.log(`${key}: ${value}`);
+// });
+// console.log('---------------------');
+
 const app = express();
 const port = process.env.PORT || 3000;
 

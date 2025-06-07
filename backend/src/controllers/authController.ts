@@ -38,7 +38,20 @@ export const getCurrentUser = async (req: Request, res: Response) => {
   try {
     // If using session-based auth (Passport)
     if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
-      return res.json(req.user);
+      const user = req.user as any;
+      // If user is pending, return a special response
+      if (user.status === 'pending') {
+        return res.json({
+          status: 'pending',
+          message: 'Your account is pending approval by an administrator.',
+          user: {
+            id: user.id,
+            email: user.email,
+            status: user.status
+          }
+        });
+      }
+      return res.json(user);
     }
     
     // If using token-based auth
@@ -56,6 +69,19 @@ export const getCurrentUser = async (req: Request, res: Response) => {
     const user = await authService.getUserById(decoded.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If user is pending, return a special response
+    if (user.status === 'pending') {
+      return res.json({
+        status: 'pending',
+        message: 'Your account is pending approval by an administrator.',
+        user: {
+          id: user.id,
+          email: user.email,
+          status: user.status
+        }
+      });
     }
 
     res.json(user);
