@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import jwt from 'jsonwebtoken';
 
+export type UserStatus = 'pending' | 'approved' | 'denied';
+
 export interface User {
   id: number;
   username: string;
@@ -9,6 +11,7 @@ export interface User {
   googleId?: string;
   displayName?: string;
   picture?: string;
+  status: UserStatus;
 }
 
 interface UserRow {
@@ -19,6 +22,7 @@ interface UserRow {
   google_id?: string;
   display_name?: string;
   picture?: string;
+  status: UserStatus;
 }
 
 export class AuthService {
@@ -30,14 +34,14 @@ export class AuthService {
     this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
   }
 
-
   generateToken(user: User): string {
     return jwt.sign(
       { 
         id: user.id,
         email: user.email,
         username: user.username,
-        isAdmin: user.isAdmin 
+        isAdmin: user.isAdmin,
+        status: user.status
       },
       this.JWT_SECRET,
       { expiresIn: '24h' }
@@ -48,7 +52,7 @@ export class AuthService {
     console.log(`Getting user by ID: ${id}`);
 
     try {
-      const stmt = this.db.prepare('SELECT id, username, email, is_admin FROM users WHERE id = ?');
+      const stmt = this.db.prepare('SELECT id, username, email, is_admin, status FROM users WHERE id = ?');
       const row = stmt.get(id) as UserRow | undefined;
 
       if (!row) {
@@ -59,7 +63,8 @@ export class AuthService {
         id: row.id,
         username: row.username,
         email: row.email,
-        isAdmin: row.is_admin === 1
+        isAdmin: row.is_admin === 1,
+        status: row.status
       };
     } catch (error) {
       console.error('Database error during get user by ID:', error);
@@ -87,10 +92,10 @@ export class AuthService {
         row = emailStmt.get(profile.emails[0].value) as UserRow | undefined;
 
         if (!row) {
-          // Create new user
+          // Create new user with pending status
           const insertStmt = this.db.prepare(`
-            INSERT INTO users (username, email, google_id, display_name, picture, is_admin)
-            VALUES (?, ?, ?, ?, ?, 0)
+            INSERT INTO users (username, email, google_id, display_name, picture, is_admin, status)
+            VALUES (?, ?, ?, ?, ?, 0, 'pending')
           `);
           
           const result = insertStmt.run(
@@ -128,11 +133,45 @@ export class AuthService {
         isAdmin: row.is_admin === 1,
         googleId: row.google_id,
         displayName: row.display_name,
-        picture: row.picture
+        picture: row.picture,
+        status: row.status
       };
     } catch (error) {
       console.error('Error in findOrCreateUser:', error);
       return null;
+    }
+  }
+
+  async getPendingUsers(): Promise<User[]> {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM users WHERE status = ?');
+      const rows = stmt.all('pending') as UserRow[];
+      
+      return rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        email: row.email,
+        isAdmin: row.is_admin === 1,
+        googleId: row.google_id,
+        displayName: row.display_name,
+        picture: row.picture,
+        status: row.status
+      }));
+    } catch (error) {
+      console.error('Error getting pending users:', error);
+      throw error;
+    }
+  }
+
+  async updateUserStatus(userId: number, status: UserStatus): Promise<User | null> {
+    try {
+      const updateStmt = this.db.prepare('UPDATE users SET status = ? WHERE id = ?');
+      updateStmt.run(status, userId);
+      
+      return this.getUserById(userId.toString());
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      throw error;
     }
   }
 } 

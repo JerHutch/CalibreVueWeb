@@ -2,6 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/api/axios';
 
+export type UserStatus = 'pending' | 'approved' | 'denied';
+
 interface User {
   id: string;
   username: string;
@@ -10,6 +12,7 @@ interface User {
   googleId?: string;
   displayName?: string;
   picture?: string;
+  status: UserStatus;
 }
 
 const STORAGE_KEY = 'auth_user';
@@ -21,8 +24,10 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null);
 
   // Computed
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!user.value && user.value.status === 'approved');
   const isAdmin = computed(() => user.value?.isAdmin ?? false);
+  const isPending = computed(() => user.value?.status === 'pending');
+  const isDenied = computed(() => user.value?.status === 'denied');
 
   // Actions
   async function login(username: string, password: string) {
@@ -50,24 +55,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function logout() {
-    try {
-      await api.post('/auth/logout');
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      reset();
-    }
-  }
-
   async function checkAuth() {
     try {
+      error.value = null;
       const response = await api.get('/auth/me');
       const userData = response.data;
       user.value = userData;
       // Update localStorage with fresh user data
       localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
     } catch (err) {
+      reset();
+    }
+  }
+
+  async function logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
       reset();
     }
   }
@@ -86,10 +92,12 @@ export const useAuthStore = defineStore('auth', () => {
     // Computed
     isAuthenticated,
     isAdmin,
+    isPending,
+    isDenied,
     // Actions
     login,
-    logout,
     checkAuth,
+    logout,
     reset
   };
 }); 

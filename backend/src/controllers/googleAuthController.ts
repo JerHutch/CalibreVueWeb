@@ -27,9 +27,15 @@ export function initializeController(authService: AuthService) {
         callbackURL: '/api/auth/google/callback'
     },
         async function(accessToken: string, refreshToken: string, profile: any, done: any) {
-            console.log(accessToken, refreshToken, profile);
             const user = await authService.findOrCreateUser(profile);
+            console.log('user', user);
             if (user) {
+                if (user.status === 'pending') {
+                    return done(null, false, { message: 'Your account is pending approval by an administrator.' });
+                }
+                if (user.status === 'denied') {
+                    return done(null, false, { message: 'Your account has been denied access.' });
+                }
                 done(null, user);
             } else {
                 done(null, false);
@@ -43,7 +49,11 @@ export function authenticateGoogle() {
 }
 
 export function handleGoogleCallback() {
-    return passport.authenticate('google', { failureRedirect: '/login' });
+    var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return passport.authenticate('google', { 
+        failureRedirect: `${baseUrl}/pending`,
+        failureMessage: true
+    });
 }
 
 export function redirectAfterAuth(req: Request, res: Response) {
