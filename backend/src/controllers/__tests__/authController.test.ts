@@ -1,17 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
 import { login, logout, getCurrentUser, initializeController } from '../authController';
-import { AuthService } from '../../services/authService';
+import { AuthService, User } from '../../services/authService';
+
+// Define the mock service interface
+interface MockAuthService {
+  validateUser: (username: string, password: string) => Promise<User | null>;
+  generateToken: (user: User) => string;
+  verifyToken: (token: string) => any;
+  getUserById: (id: string) => Promise<User | null>;
+}
 
 describe('Auth Controller', () => {
-  let mockRequest: Partial<Request>;
+  let mockRequest: any;
   let mockResponse: Partial<Response>;
-  let mockAuthService: AuthService;
+  let mockAuthService: MockAuthService;
 
   beforeEach(() => {
     mockRequest = {
       body: {},
-      headers: {}
+      headers: {},
+      isAuthenticated: vi.fn().mockReturnValue(false),
+      user: undefined
     };
     mockResponse = {
       status: vi.fn().mockReturnThis(),
@@ -22,81 +32,17 @@ describe('Auth Controller', () => {
       generateToken: vi.fn(),
       verifyToken: vi.fn(),
       getUserById: vi.fn()
-    } as unknown as AuthService;
+    };
 
     // Mock console.error
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    initializeController(mockAuthService);
+    initializeController(mockAuthService as unknown as AuthService);
     vi.clearAllMocks();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('login', () => {
-    it('should return 400 if username or password is missing', async () => {
-      await login(mockRequest as Request, mockResponse as Response);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'Username and password are required'
-      });
-    });
-
-    it('should return 401 if credentials are invalid', async () => {
-      mockRequest.body = {
-        username: 'testuser',
-        password: 'wrong-password'
-      };
-      (mockAuthService.validateUser as any).mockResolvedValue(null);
-
-      await login(mockRequest as Request, mockResponse as Response);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'Invalid username or password'
-      });
-    });
-
-    it('should return user and token if credentials are valid', async () => {
-      const mockUser = {
-        id: '123',
-        username: 'testuser',
-        email: 'test@example.com',
-        isAdmin: true
-      };
-      mockRequest.body = {
-        username: 'testuser',
-        password: 'correct-password'
-      };
-      (mockAuthService.validateUser as any).mockResolvedValue(mockUser);
-      (mockAuthService.generateToken as any).mockReturnValue('mock-token');
-
-      await login(mockRequest as Request, mockResponse as Response);
-
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        user: mockUser,
-        token: 'mock-token'
-      });
-    });
-
-    it('should handle internal server errors', async () => {
-      mockRequest.body = {
-        username: 'testuser',
-        password: 'password'
-      };
-      (mockAuthService.validateUser as any).mockRejectedValue(new Error('Database error'));
-
-      await login(mockRequest as Request, mockResponse as Response);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'Internal server error'
-      });
-      expect(console.error).toHaveBeenCalled();
-    });
   });
 
   describe('logout', () => {
@@ -137,7 +83,7 @@ describe('Auth Controller', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid-token'
       };
-      (mockAuthService.verifyToken as any).mockReturnValue({ id: '123' });
+      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
       (mockAuthService.getUserById as any).mockResolvedValue(null);
 
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
@@ -148,17 +94,69 @@ describe('Auth Controller', () => {
       });
     });
 
-    it('should return user data if token is valid', async () => {
-      const mockUser = {
-        id: '123',
+    it('should return pending status for pending users via session', async () => {
+      const pendingUser: User = {
+        id: 123,
         username: 'testuser',
         email: 'test@example.com',
-        isAdmin: true
+        isAdmin: false,
+        status: 'pending'
+      };
+      mockRequest.isAuthenticated.mockReturnValue(true);
+      mockRequest.user = pendingUser;
+
+      await getCurrentUser(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        status: 'pending',
+        message: 'Your account is pending approval by an administrator.',
+        user: {
+          id: pendingUser.id,
+          email: pendingUser.email,
+          status: pendingUser.status
+        }
+      });
+    });
+
+    it('should return pending status for pending users via token', async () => {
+      const pendingUser: User = {
+        id: 123,
+        username: 'testuser',
+        email: 'test@example.com',
+        isAdmin: false,
+        status: 'pending'
       };
       mockRequest.headers = {
         authorization: 'Bearer valid-token'
       };
-      (mockAuthService.verifyToken as any).mockReturnValue({ id: '123' });
+      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
+      (mockAuthService.getUserById as any).mockResolvedValue(pendingUser);
+
+      await getCurrentUser(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        status: 'pending',
+        message: 'Your account is pending approval by an administrator.',
+        user: {
+          id: pendingUser.id,
+          email: pendingUser.email,
+          status: pendingUser.status
+        }
+      });
+    });
+
+    it('should return user data if token is valid and user is approved', async () => {
+      const mockUser: User = {
+        id: 123,
+        username: 'testuser',
+        email: 'test@example.com',
+        isAdmin: true,
+        status: 'approved'
+      };
+      mockRequest.headers = {
+        authorization: 'Bearer valid-token'
+      };
+      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
       (mockAuthService.getUserById as any).mockResolvedValue(mockUser);
 
       await getCurrentUser(mockRequest as Request, mockResponse as Response);

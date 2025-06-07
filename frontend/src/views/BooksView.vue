@@ -1,3 +1,20 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { useBookStore } from '@/stores/bookStore';
+import BookCard from '@/components/BookCard.vue';
+
+const bookStore = useBookStore();
+const searchInput = ref('');
+
+const handleSearch = () => {
+  bookStore.setSearchQuery(searchInput.value);
+};
+
+onMounted(() => {
+  bookStore.fetchBooks();
+});
+</script>
+
 <template>
   <div class="books-view">
     <h1>Books</h1>
@@ -46,22 +63,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useBookStore } from '@/stores/book';
-import BookCard from '@/components/BookCard.vue';
 
-const bookStore = useBookStore();
-const searchInput = ref('');
-
-const handleSearch = () => {
-  bookStore.setSearchQuery(searchInput.value);
-};
-
-onMounted(() => {
-  bookStore.fetchBooks();
-});
-</script>
 
 <style scoped>
 .books-view {

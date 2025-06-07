@@ -1,3 +1,30 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/authStore';
+
+const router = useRouter();
+const authStore = useAuthStore();
+
+const username = ref('');
+const password = ref('');
+const isLoading = ref(false);
+
+const handleLogin = async () => {
+  try {
+    isLoading.value = true;
+    console.log('login', username.value);
+    await authStore.login(username.value, password.value);
+    router.push('/books');
+  } catch (error) {
+    // Error is handled by the store
+    console.error('Login failed:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+</script>
+
 <template>
   <div class="login-view">
     <div class="login-container">
@@ -38,32 +65,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
 
-const router = useRouter();
-const authStore = useAuthStore();
-
-const username = ref('');
-const password = ref('');
-const isLoading = ref(false);
-
-const handleLogin = async () => {
-  try {
-    isLoading.value = true;
-    console.log('login', username.value);
-    await authStore.login(username.value, password.value);
-    router.push('/books');
-  } catch (error) {
-    // Error is handled by the store
-    console.error('Login failed:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-</script>
 
 <style scoped>
 .login-view {

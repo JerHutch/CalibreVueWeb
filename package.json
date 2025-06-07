@@ -16,5 +16,9 @@
   "workspaces": [
     "backend",
     "frontend"
-  ]
+  ],
+  "dependencies": {
+    "@types/express-session": "^1.18.1",
+    "express-session": "^1.18.1"
+  }
 }

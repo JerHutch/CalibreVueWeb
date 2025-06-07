@@ -1,9 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/authStore';
 
 const router = createRouter({
   history: createWebHistory('/'),
   routes: [
+    {
+      path: '/',
+      redirect: { name: 'books' }
+    },
     {
       path: '/books',
       name: 'books',
@@ -25,7 +29,12 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/LoginView.vue')
+      component: () => import('@/views/OAuthLoginView.vue')
+    },
+    {
+      path: '/auth/google/callback',
+      name: 'google-callback',
+      component: () => import('@/views/GoogleCallbackView.vue')
     },
     {
       path: '/pending',

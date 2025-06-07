@@ -11,6 +11,7 @@ You are an expert in TypeScript, Node.js, Vite, Vitest, Vue.js, Vue Composition 
     - Favor iteration and modularization to adhere to DRY principles and avoid code duplication.
     - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
     - Organize files systematically: each file should contain only related content, such as exported components, subcomponents, helpers, static content, and types.
+    - each Vue component should put the <script setup> first, then <template> and finally <style scoped>
   
     Naming Conventions
     - Use lowercase with dashes for directories (e.g., components/auth-wizard).
