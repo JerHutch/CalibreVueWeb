@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../../types/express';
 import { getBooks, getBookById, initializeController, getBookCover, downloadBook } from '../bookController';
 import { CalibreService } from '../../services/calibreService';
 import fs from 'fs';
@@ -23,9 +24,17 @@ vi.mock('fs', () => ({
   }
 }));
 
+// Define a type for the mock request that includes isAuthenticated
+interface MockRequest extends Partial<Request> {
+  isAuthenticated?: {
+    (): this is AuthenticatedRequest;
+    (): boolean;
+  };
+}
+
 describe('bookController', () => {
   let mockService: CalibreService;
-  let mockRequest: Partial<Request>;
+  let mockRequest: MockRequest;
   let mockResponse: Partial<Response>;
 
   beforeEach(() => {
@@ -35,7 +44,13 @@ describe('bookController', () => {
     // Create mock request and response objects
     mockRequest = {
       query: {},
-      params: {}
+      params: {},
+      headers: {},
+      body: {},
+      isAuthenticated: function(this: any) {
+        return false;
+      } as any,
+      user: undefined
     };
     
     mockResponse = {

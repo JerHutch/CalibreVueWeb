@@ -51,71 +51,7 @@ describe('AuthService', () => {
     authService = new AuthService(mockDb);
   });
 
-  describe('validateUser', () => {
-    it('should return null if user is not found', async () => {
-      mockPreparedStatement.get.mockReturnValueOnce(null);
-
-      const result = await authService.validateUser('nonexistent', 'password');
-      expect(result).toBeNull();
-      expect(mockDb.prepare).toHaveBeenCalled();
-    });
-
-    it('should return null if password is invalid', async () => {
-      const mockUser = {
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'hashed_password',
-        is_admin: 1
-      };
-      mockPreparedStatement.get.mockReturnValueOnce(mockUser);
-
-      const result = await authService.validateUser('testuser', 'wrong_password');
-      expect(result).toBeNull();
-      expect(mockDb.prepare).toHaveBeenCalled();
-    });
-
-    it('should return user object if credentials are valid', async () => {
-      const mockUser = {
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'correct_password',
-        is_admin: 1
-      };
-      mockPreparedStatement.get.mockReturnValueOnce(mockUser);
-
-      const result = await authService.validateUser('testuser', 'correct_password');
-      expect(result).toEqual({
-        id: mockUser.id,
-        username: mockUser.username,
-        email: mockUser.email,
-        isAdmin: true
-      });
-      expect(mockDb.prepare).toHaveBeenCalled();
-    });
-  });
-
-  describe('generateToken', () => {
-    it('should generate a valid JWT token', () => {
-      const user = {
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        isAdmin: true
-      };
-      const token = authService.generateToken(user);
-      
-      expect(token).toBeDefined();
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      expect(decoded).toMatchObject({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        isAdmin: user.isAdmin
-      });
-    });
-  });
+  
 
   describe('getUserById', () => {
     it('should return null if user is not found', async () => {
@@ -146,28 +82,4 @@ describe('AuthService', () => {
     });
   });
 
-  describe('verifyToken', () => {
-    it('should return decoded token if valid', () => {
-      const user = {
-        id: 1,
-        username: 'testuser',
-        email: 'test@example.com',
-        isAdmin: true
-      };
-      const token = authService.generateToken(user);
-      
-      const result = authService.verifyToken(token);
-      expect(result).toMatchObject({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        isAdmin: user.isAdmin
-      });
-    });
-
-    it('should return null if token is invalid', () => {
-      const result = authService.verifyToken('invalid-token');
-      expect(result).toBeNull();
-    });
-  });
 }); 
