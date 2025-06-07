@@ -25,11 +25,11 @@ const logout = () => {
       </nav>
       <div class="auth">
         <template v-if="isAuthenticated">
-          <span>{{ user?.name }}</span>
-          <button @click="logout">Logout</button>
+          <span class="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{{ user?.displayName || user?.username }}</span>
+          <button @click="logout" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition focus:outline-none focus:ring-2 focus:ring-blue-300">Logout</button>
         </template>
         <template v-else>
-          <button @click="login">Login</button>
+          <!-- No Login button -->
         </template>
       </div>
     </header>
