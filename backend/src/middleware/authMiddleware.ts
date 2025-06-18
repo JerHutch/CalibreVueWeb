@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/authService';
+import logger from '../utils/logger';
 
 let authService: AuthService;
 
@@ -15,7 +16,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
  
   } catch (error) {
-    console.error('Authentication error:', error);
+    logger.error(`Authentication error: ${error}`);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import jwt from 'jsonwebtoken';
+import logger from '../utils/logger';
 
 export type UserStatus = 'pending' | 'approved' | 'denied';
 
@@ -49,7 +50,7 @@ export class AuthService {
   }
 
   async getUserById(id: string): Promise<User | null> {
-    console.log(`Getting user by ID: ${id}`);
+    logger.info(`Getting user by ID: ${id}`);
 
     try {
       const stmt = this.db.prepare('SELECT id, username, email, is_admin, status FROM users WHERE id = ?');
@@ -67,7 +68,7 @@ export class AuthService {
         status: row.status
       };
     } catch (error) {
-      console.error('Database error during get user by ID:', error);
+      logger.error(`Database error during get user by ID: ${error}`);
       throw error;
     }
   }
@@ -137,7 +138,7 @@ export class AuthService {
         status: row.status
       };
     } catch (error) {
-      console.error('Error in findOrCreateUser:', error);
+      logger.error(`Error in findOrCreateUser: ${error}`);
       return null;
     }
   }
@@ -158,7 +159,7 @@ export class AuthService {
         status: row.status
       }));
     } catch (error) {
-      console.error('Error getting pending users:', error);
+      logger.error(`Error getting pending users: ${error}`);
       throw error;
     }
   }
@@ -170,7 +171,7 @@ export class AuthService {
       
       return this.getUserById(userId.toString());
     } catch (error) {
-      console.error('Error updating user status:', error);
+      logger.error(`Error updating user status: ${error}`);
       throw error;
     }
   }

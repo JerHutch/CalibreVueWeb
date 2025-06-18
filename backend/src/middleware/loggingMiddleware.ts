@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import logger from '../utils/logger';
 
 const maskSensitiveData = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
@@ -21,19 +22,19 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   const start = Date.now();
   
   // Log request details
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  logger.info(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  logger.info('Headers: ' + JSON.stringify(req.headers, null, 2));
   if (req.body && Object.keys(req.body).length > 0) {
-    console.log('Body:', JSON.stringify(maskSensitiveData(req.body), null, 2));
+    logger.info('Body: ' + JSON.stringify(maskSensitiveData(req.body), null, 2));
   }
   // log blank line
-  console.log('');
+  logger.info('');
   
 
   // Log response details when the response is finished
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+    logger.info(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
   });
 
   next();
