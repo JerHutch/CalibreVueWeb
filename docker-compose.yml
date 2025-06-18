@@ -5,12 +5,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
+      container_name: calibre-frontend
+      # In development, mount source for hot reloading
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    working_dir: /app
+    command: npm run dev
+    ports:
+      - "8888:8888"
     environment:
+      - NODE_ENV=development
       - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
@@ -19,16 +24,25 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      container_name: calibre-backend
+    # In development, mount source for hot reloading
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+      - ${CALIBRE_DB_PATH}:/calibre
+    working_dir: /usr/src/app
+    command: npm run dev
     ports:
       - "3000:3000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - ${CALIBRE_LIBRARY_PATH}:/calibre
     environment:
       - NODE_ENV=development
-      - PORT=3000
-      - CALIBRE_DB_PATH=/calibre/metadata.db
-      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
-      - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
-      - ADMIN_EMAIL=${ADMIN_EMAIL} 
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  calibre-db:
+    driver: local
+
+

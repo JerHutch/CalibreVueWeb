@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { fileURLToPath, URL } from 'node:url';
 import appConfig from './src/app.config.json';
+import tailwindcss from '@tailwindcss/vite';
 
 var proxPattern = `^${appConfig.apiUrl}`;
 var baseUrl = `http://${appConfig.apiHost}:${appConfig.apiPort}`;
@@ -26,7 +27,7 @@ var devProxy = {
 devServer.proxy[proxPattern] = devProxy;
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

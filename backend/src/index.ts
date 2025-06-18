@@ -15,19 +15,20 @@ import { requestLogger } from './middleware/loggingMiddleware';
 import Database from 'better-sqlite3';
 
 // Load environment variables from .development.env
-dotenv.config({ path: path.join(__dirname, '..', '.development.env') });
+const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.development.env';
+dotenv.config({ path: envFile });
 
-// // Log all environment variables
-// console.log('Environment Variables:');
-// console.log('---------------------');
-// Object.keys(process.env).forEach(key => {
-//     // Mask sensitive values
-//     const value = ['SESSION_SECRET', 'GOOGLE_CLIENT_SECRET'].includes(key) 
-//         ? '********' 
-//         : process.env[key];
-//     console.log(`${key}: ${value}`);
-// });
-// console.log('---------------------');
+// Log all environment variables
+console.log('Environment Variables:');
+console.log('---------------------');
+Object.keys(process.env).forEach(key => {
+    // Mask sensitive values
+    const value = ['SESSION_SECRET', 'GOOGLE_CLIENT_SECRET'].includes(key) 
+        ? '********' 
+        : process.env[key];
+    console.log(`${key}: ${value}`);
+});
+console.log('---------------------');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -57,7 +58,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Initialize services
-const calibreDbPath = process.env.CALIBRE_DB_PATH || 'bob.db';
+const calibreDbDir = './data';
+const calibreDbName = process.env.CALIBRE_DB_NAME || 'bob.db';
+const calibreDbPath = path.join(calibreDbDir, calibreDbName);
 const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
 const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
 const calibreService = new CalibreService(calibreDb, calibreDbPath);

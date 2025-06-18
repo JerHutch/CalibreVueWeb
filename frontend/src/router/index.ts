@@ -35,12 +35,6 @@ const router = createRouter({
       path: '/auth/google/callback',
       name: 'google-callback',
       component: () => import('@/views/GoogleCallbackView.vue')
-    },
-    {
-      path: '/pending',
-      name: 'pending',
-      component: () => import('@/views/PendingView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 });

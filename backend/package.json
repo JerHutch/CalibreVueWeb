@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Backend for Calibre Web Interface",
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "start": "NODE_ENV=production ts-node src/index.ts",
+    "dev": "NODE_ENV=development nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "test": "vitest"
   },
