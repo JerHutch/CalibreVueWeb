@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
 import { login, logout, getCurrentUser, initializeController } from '../authController';
 import { AuthService, User } from '../../services/authService';
+import logger from '../../utils/logger';
 
 // Define the mock service interface
 interface MockAuthService {
@@ -34,8 +35,8 @@ describe('Auth Controller', () => {
       getUserById: vi.fn()
     };
 
-    // Mock console.error
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Mock logger.error
+    vi.spyOn(logger, 'error').mockImplementation(() => {} as any);
 
     initializeController(mockAuthService as unknown as AuthService);
     vi.clearAllMocks();
@@ -178,7 +179,7 @@ describe('Auth Controller', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         error: 'Internal server error'
       });
-      expect(console.error).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
-}); 
+});

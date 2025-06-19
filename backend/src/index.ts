@@ -12,6 +12,7 @@ import { initializeController as initializeAuthController } from './controllers/
 import { initializeController as initializeGoogleAuthController } from './controllers/googleAuthController';
 import { initializeController as initializeAdminController } from './controllers/adminController';
 import { requestLogger } from './middleware/loggingMiddleware';
+import logger from './utils/logger';
 import Database from 'better-sqlite3';
 
 // Load environment variables from .development.env
@@ -19,16 +20,16 @@ const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.developm
 dotenv.config({ path: envFile });
 
 // Log all environment variables
-console.log('Environment Variables:');
-console.log('---------------------');
+logger.info('Environment Variables:');
+logger.info('---------------------');
 Object.keys(process.env).forEach(key => {
     // Mask sensitive values
     const value = ['SESSION_SECRET', 'GOOGLE_CLIENT_SECRET'].includes(key) 
         ? '********' 
         : process.env[key];
-    console.log(`${key}: ${value}`);
+    logger.info(`${key}: ${value}`);
 });
-console.log('---------------------');
+logger.info('---------------------');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -77,5 +78,5 @@ setupRoutes(app);
 
 // Start server
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-}); 
+  logger.info(`Server is running on port ${port}`);
+});

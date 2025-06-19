@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { CalibreService } from '../services/calibreService';
 import path from 'path';
 import fs from 'fs';
+import logger from '../utils/logger';
 
 let calibreService: CalibreService;
 
@@ -18,7 +19,7 @@ export const getBooks = async (req: Request, res: Response) => {
     const result = await calibreService.getBooks(page, limit, search);
     res.json(result);
   } catch (error) {
-    console.error('Error fetching books:', error);
+    logger.error(`Error fetching books: ${error}`);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Database error' });
   }
 };
@@ -37,7 +38,7 @@ export const getBookById = async (req: Request, res: Response) => {
 
     res.json(book);
   } catch (error) {
-    console.error('Error fetching book:', error);
+    logger.error(`Error fetching book: ${error}`);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Database error' });
   }
 };
@@ -55,7 +56,7 @@ export const getBookCover = async (req: Request, res: Response) => {
     }
 
     const coverPath = calibreService.getCoverPath(book);
-    console.log('coverPath', coverPath);
+    logger.info(`coverPath ${coverPath}`);
     if (!coverPath) {
       return res.status(404).json({ error: 'Cover not found' });
     }
@@ -68,7 +69,7 @@ export const getBookCover = async (req: Request, res: Response) => {
     // Send the file
     res.sendFile(coverPath);
   } catch (error) {
-    console.error('Error serving book cover:', error);
+    logger.error(`Error serving book cover: ${error}`);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Server error' });
   }
 };
@@ -86,7 +87,7 @@ export const downloadBook = async (req: Request, res: Response) => {
     }
 
     const filePath = calibreService.getBookFilePath(book);
-    console.log('filePath', filePath);
+    logger.info(`filePath ${filePath}`);
     if (!filePath) {
       return res.status(404).json({ error: 'Book file not found' });
     }
@@ -103,7 +104,7 @@ export const downloadBook = async (req: Request, res: Response) => {
     // Send the file
     res.sendFile(filePath);
   } catch (error) {
-    console.error('Error serving book file:', error);
+    logger.error(`Error serving book file: ${error}`);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Server error' });
   }
 }; 

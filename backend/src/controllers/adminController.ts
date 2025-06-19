@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/authService';
+import logger from '../utils/logger';
 
 let authService: AuthService;
 
@@ -12,7 +13,7 @@ export const getPendingUsers = async (req: Request, res: Response) => {
     const pendingUsers = await authService.getPendingUsers();
     res.json(pendingUsers);
   } catch (error) {
-    console.error('Error getting pending users:', error);
+    logger.error(`Error getting pending users: ${error}`);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -26,7 +27,7 @@ export const approveUser = async (req: Request, res: Response) => {
     }
     res.json(user);
   } catch (error) {
-    console.error('Error approving user:', error);
+    logger.error(`Error approving user: ${error}`);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -40,7 +41,7 @@ export const denyUser = async (req: Request, res: Response) => {
     }
     res.json(user);
   } catch (error) {
-    console.error('Error denying user:', error);
+    logger.error(`Error denying user: ${error}`);
     res.status(500).json({ error: 'Internal server error' });
   }
 }; 

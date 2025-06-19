@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/authService';
+import logger from '../utils/logger';
 
 let authService: AuthService;
 
@@ -65,7 +66,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 
     res.json(user);
   } catch (error) {
-    console.error('Get current user error:', error);
+    logger.error(`Get current user error: ${error}`);
     res.status(500).json({ error: 'Internal server error' });
   }
-}; 
+};

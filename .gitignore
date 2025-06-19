@@ -54,3 +54,7 @@ docker-compose.override.yml
 *.db-wal
 *.db-shm 
 *.env
+
+# Backend logs
+backend/logs/*
+!backend/logs/.gitkeep

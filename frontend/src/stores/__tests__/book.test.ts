@@ -1,13 +1,36 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useBookStore } from '../book';
-import axios from 'axios';
+import { useBookStore } from '../bookStore';
 import { faker } from '@faker-js/faker';
 
-// Mock axios
-vi.mock('axios');
-const mockedAxios = axios as unknown as {
+// Mock the api module
+vi.mock('../../api/axios', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn()
+  }
+}));
+
+// Mock the useFileDownload composable
+vi.mock('../../composables/useFileDownload', () => ({
+  useFileDownload: vi.fn(() => ({
+    downloadFile: vi.fn(),
+    isDownloading: { value: false },
+    downloadError: { value: null },
+    downloadProgress: { value: 0 }
+  }))
+}));
+
+// Import the mocked api
+import api from '../../api/axios';
+import { useFileDownload } from '../../composables/useFileDownload';
+const mockedApi = api as unknown as {
   get: Mock;
+};
+const mockedUseFileDownload = useFileDownload as unknown as {
+  downloadFile: Mock;
 };
 
 // Helper function to generate a mock book
@@ -45,7 +68,7 @@ describe('Book Store', () => {
         total: 5
       };
 
-      mockedAxios.get.mockResolvedValueOnce({ data: mockBooks });
+      mockedApi.get.mockResolvedValueOnce({ data: mockBooks });
 
       const store = useBookStore();
       await store.fetchBooks();
@@ -56,8 +79,8 @@ describe('Book Store', () => {
       expect(store.error).toBeNull();
       expect(store.currentPage).toBe(1);
       expect(store.pageSize).toBe(20);
-      expect(mockedAxios.get).toHaveBeenCalledWith('/api/books', {
-        params: { page: 1, limit: 20 }
+      expect(mockedApi.get).toHaveBeenCalledWith('/books', {
+        params: { page: 1, limit: 20, search: '' }
       });
     });
 
@@ -67,21 +90,21 @@ describe('Book Store', () => {
         total: 50
       };
 
-      mockedAxios.get.mockResolvedValueOnce({ data: mockBooks });
+      mockedApi.get.mockResolvedValueOnce({ data: mockBooks });
 
       const store = useBookStore();
       await store.fetchBooks(2, 10);
 
       expect(store.currentPage).toBe(2);
       expect(store.pageSize).toBe(10);
-      expect(mockedAxios.get).toHaveBeenCalledWith('/api/books', {
-        params: { page: 2, limit: 10 }
+      expect(mockedApi.get).toHaveBeenCalledWith('/books', {
+        params: { page: 2, limit: 10, search: '' }
       });
     });
 
     it('should handle errors', async () => {
       const errorMessage = faker.lorem.sentence();
-      mockedAxios.get.mockRejectedValueOnce(new Error(errorMessage));
+      mockedApi.get.mockRejectedValueOnce(new Error(errorMessage));
 
       const store = useBookStore();
       await store.fetchBooks();
@@ -119,20 +142,40 @@ describe('Book Store', () => {
   });
 
   describe('getCoverUrl', () => {
-    it('should return correct cover URL', () => {
+    it('should return blob URL for book cover', async () => {
       const store = useBookStore();
       const bookId = 123;
-      const url = store.getCoverUrl(bookId);
-      expect(url).toBe('/api/books/123/cover');
+      const mockBlob = new Blob(['test'], { type: 'image/jpeg' });
+      const mockBlobUrl = 'blob:http://localhost:3000/test-url';
+      
+      // Mock URL.createObjectURL
+      const originalCreateObjectURL = URL.createObjectURL;
+      URL.createObjectURL = vi.fn().mockReturnValue(mockBlobUrl);
+      
+      mockedApi.get.mockResolvedValueOnce({ data: mockBlob });
+
+      const url = await store.getCoverUrl(bookId);
+      
+      expect(mockedApi.get).toHaveBeenCalledWith(`/books/${bookId}/cover`, {
+        responseType: 'blob'
+      });
+      expect(URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
+      expect(url).toBe(mockBlobUrl);
+      
+      // Restore original function
+      URL.createObjectURL = originalCreateObjectURL;
+    });
+
+    it('should return empty string on error', async () => {
+      const store = useBookStore();
+      const bookId = 123;
+      
+      mockedApi.get.mockRejectedValueOnce(new Error('Cover not found'));
+
+      const url = await store.getCoverUrl(bookId);
+      
+      expect(url).toBe('');
     });
   });
 
-  describe('getDownloadUrl', () => {
-    it('should return correct download URL', () => {
-      const store = useBookStore();
-      const bookId = 123;
-      const url = store.getDownloadUrl(bookId);
-      expect(url).toBe('/api/books/123/download');
-    });
-  });
 }); 
