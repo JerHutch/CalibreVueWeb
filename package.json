@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Web interface for Calibre eBook library",
   "scripts": {
+    "setup": "concurrently \"cd backend && npm install\" \"cd frontend && npm install\"",
     "start": "concurrently \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && npm run dev",
     "frontend": "cd frontend && npm run dev",

@@ -1,48 +1,47 @@
-version: '3.8'
-
 services:
   frontend:
+    container_name: calibre-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      container_name: calibre-frontend
-      # In development, mount source for hot reloading
     volumes:
       - ./frontend:/app
       - /app/node_modules
     working_dir: /app
-    command: npm run dev
+    command: npm run dev -- --host 0.0.0.0
     ports:
       - "8888:8888"
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
+    networks:
+      - calibre-network
 
   backend:
+    container_name: calibre-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
-      container_name: calibre-backend
-    # In development, mount source for hot reloading
     volumes:
       - ./backend:/usr/src/app
       - /usr/src/app/node_modules
-      - ${CALIBRE_DB_PATH}:/calibre
+      - ${CALIBRE_DB_PATH}:/usr/src/app/data
     working_dir: /usr/src/app
     command: npm run dev
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+    networks:
+      - calibre-network
 
 networks:
-  default:
+  calibre-network:
     driver: bridge
 
 volumes:
-  calibre-db:
-    driver: local
+  node_modules_frontend:
+  node_modules_backend:
 
 
