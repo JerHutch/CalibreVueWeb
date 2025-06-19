@@ -59,7 +59,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Initialize services
-const calibreDbDir = './data';
+const calibreDbDir = './calibre';
 const calibreDbName = process.env.CALIBRE_DB_NAME || 'bob.db';
 const calibreDbPath = path.join(calibreDbDir, calibreDbName);
 
@@ -68,8 +68,9 @@ try {
   const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
   console.log('Successfully connected to Calibre database');
   
-  console.log(`Attempting to connect to application database at: ${process.env.APP_DB_PATH || 'app.db'}`);
-  const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
+  console.log(`Attempting to connect to application database at: ${process.env.APP_DB_FILENAME || 'app.db'}`);
+  const appDbPath = path.join('data', process.env.APP_DB_FILENAME || 'app.db');
+  const appDb = new Database(appDbPath);
   console.log('Successfully connected to application database');
 
   const calibreService = new CalibreService(calibreDb, calibreDbPath);

@@ -21,4 +21,4 @@ COPY .development.env .development.env
 EXPOSE 3000
 
 # Default command to run your Node.js server
-CMD ["npm", "start"]
+CMD ["npm", "dev"]

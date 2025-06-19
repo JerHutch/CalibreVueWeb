@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import * as Database from 'better-sqlite3';
+import * as path from 'path';
 import logger from '../utils/logger';
 
 export interface Book {
@@ -31,6 +31,7 @@ export class CalibreService {
     this.db = db;
     // Get the directory containing the database file
     this.basePath = path.dirname(dbPath);
+    logger.info(`Calibre database path: ${this.basePath}`);
   }
 
   async getBooks(page: number = 1, pageSize: number = 20, search?: string): Promise<{ books: Book[], total: number }> {
@@ -128,7 +129,7 @@ export class CalibreService {
     if (!book.has_cover) {
       return null;
     }
-    return path.join(this.basePath, book.path, 'cover.jpg');
+    return path.resolve(this.basePath, book.path, 'cover.jpg');
   }
 
   getBookFilePath(book: Book): string | null {
@@ -136,6 +137,6 @@ export class CalibreService {
       return null;
     }
     const author = book.author.split('| ').map(name => name.trim()).join(', ');
-    return path.join(this.basePath, book.path, `${book.title} - ${author}.${book.format}`);
+    return path.resolve(this.basePath, book.path, `${book.title} - ${author}.${book.format}`);
   }
 } 

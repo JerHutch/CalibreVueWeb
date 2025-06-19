@@ -26,7 +26,8 @@ services:
     volumes:
       - ./backend:/usr/src/app
       - /usr/src/app/node_modules
-      - ${CALIBRE_DB_PATH}:/usr/src/app/data
+      - ${CALIBRE_DB_PATH}:/usr/src/app/calibre
+      - ${APP_DATA_PATH}:/usr/src/app/data
     working_dir: /usr/src/app
     command: npm run dev
     ports:
