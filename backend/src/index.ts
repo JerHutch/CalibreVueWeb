@@ -61,16 +61,28 @@ app.use(passport.session());
 const calibreDbDir = './data';
 const calibreDbName = process.env.CALIBRE_DB_NAME || 'bob.db';
 const calibreDbPath = path.join(calibreDbDir, calibreDbName);
-const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
-const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
-const calibreService = new CalibreService(calibreDb, calibreDbPath);
-const authService = new AuthService(appDb);
 
-// Initialize controllers and middleware
-initializeBookController(calibreService);
-initializeAuthController(authService);
-initializeGoogleAuthController(authService);
-initializeAdminController(authService);
+try {
+  console.log(`Attempting to connect to Calibre database at: ${calibreDbPath}`);
+  const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
+  console.log('Successfully connected to Calibre database');
+  
+  console.log(`Attempting to connect to application database at: ${process.env.APP_DB_PATH || 'app.db'}`);
+  const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
+  console.log('Successfully connected to application database');
+
+  const calibreService = new CalibreService(calibreDb, calibreDbPath);
+  const authService = new AuthService(appDb);
+
+  // Initialize controllers and middleware
+  initializeBookController(calibreService);
+  initializeAuthController(authService);
+  initializeGoogleAuthController(authService);
+  initializeAdminController(authService);
+} catch (error) {
+  console.error('Failed to initialize databases:', error);
+  process.exit(1);
+}
 
 // Setup routes
 setupRoutes(app);

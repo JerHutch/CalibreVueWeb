@@ -1,5 +1,5 @@
 # Use an official Node.js image
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 # Create app directory
 WORKDIR /app
@@ -13,8 +13,11 @@ RUN npm install
 # Copy all source files
 COPY . .
 
-# Build the production‐ready Vue app
-RUN npm run build
+# Expose port 8888 (matching docker-compose)
+EXPOSE 8888
+
+# The command is specified in docker-compose.yml
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # -----------------
 # Stage 2: Serve statically with a lightweight server
