@@ -19,8 +19,18 @@ vi.mock('../../services/calibreService', () => ({
 // Mock fs
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  createWriteStream: vi.fn().mockReturnValue({
+    write: vi.fn(),
+    end: vi.fn()
+  }),
   default: {
-    existsSync: vi.fn()
+    existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
+    createWriteStream: vi.fn().mockReturnValue({
+      write: vi.fn(),
+      end: vi.fn()
+    })
   }
 }));
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { login, logout, getCurrentUser, initializeController } from '../authController';
+import { logout, getCurrentUser, initializeController } from '../authController';
 import { AuthService, User } from '../../services/authService';
 import logger from '../../utils/logger';
 
@@ -36,7 +36,7 @@ describe('Auth Controller', () => {
     };
 
     // Mock logger.error
-    vi.spyOn(logger, 'error').mockImplementation(() => {} as any);
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
 
     initializeController(mockAuthService as unknown as AuthService);
     vi.clearAllMocks();
