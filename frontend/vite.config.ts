@@ -5,7 +5,9 @@ import appConfig from './src/app.config.json';
 import tailwindcss from '@tailwindcss/vite';
 
 var proxPattern = `^${appConfig.apiUrl}`;
-var baseUrl = `http://${appConfig.apiHost}:${appConfig.apiPort}`;
+// Use environment variable for API host, fallback to config
+var apiHost = process.env.VITE_API_HOST || appConfig.apiHost;
+var baseUrl = `http://${apiHost}:${appConfig.apiPort}`;
 
 var devServer = {
   port: 8888,
