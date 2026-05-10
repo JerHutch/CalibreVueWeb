@@ -48,11 +48,17 @@ export function initializeController(authService: AuthService) {
             if (user) {
                 if (user.status === 'pending') {
                     logger.info(`User ${user.email} attempted to login but account is pending approval`);
-                    return done(null, false, { message: 'Your account is pending approval by an administrator.' });
+                    return done(null, false, {
+                        status: 'pending',
+                        message: 'Your account is pending approval by an administrator.'
+                    });
                 }
                 if (user.status === 'denied') {
                     logger.info(`User ${user.email} attempted to login but account is denied`);
-                    return done(null, false, { message: 'Your account has been denied access.' });
+                    return done(null, false, {
+                        status: 'denied',
+                        message: 'Your account has been denied access.'
+                    });
                 }
                 logger.info(`Successfully authenticated user: ${user.email}`);
                 done(null, user);
@@ -66,22 +72,46 @@ export function initializeController(authService: AuthService) {
 
 export function authenticateGoogle() {
     logger.info('Initiating Google authentication...');
-    return passport.authenticate('google', { scope: ['profile', 'email'] });
+    return passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        state: true
+    } as any);
 }
 
 export function handleGoogleCallback() {
-    var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const callbackUrl = `${baseUrl}/auth/google/callback`;
     logger.info('Handling Google OAuth callback... baseUrl ' + baseUrl);
-    return passport.authenticate('google', {
-        failureRedirect: `${baseUrl}/auth/google/callback`,
-        failureMessage: true
-    });
+
+    return (req: Request, res: Response, next: any) => {
+        passport.authenticate('google', {}, (error: unknown, user: Express.User | false, info?: { status?: string }) => {
+            if (error) {
+                return next(error);
+            }
+
+            if (!user) {
+                const status = info?.status === 'pending' || info?.status === 'denied'
+                    ? info.status
+                    : undefined;
+                const redirectUrl = status ? `${callbackUrl}?status=${status}` : callbackUrl;
+                return res.redirect(redirectUrl);
+            }
+
+            req.logIn(user, (loginError) => {
+                if (loginError) {
+                    return next(loginError);
+                }
+
+                return next();
+            });
+        })(req, res, next);
+    };
 }
 
 export function redirectAfterAuth(req: Request, res: Response) {
     logger.info('Redirecting after successful authentication...');
     var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    var redirectUrl = `${baseUrl}/auth/google/callback`;
+    var redirectUrl = `${baseUrl}/auth/google/callback?status=approved`;
     logger.info(`Redirecting to: ${redirectUrl}`);
     res.redirect(redirectUrl);
 }
