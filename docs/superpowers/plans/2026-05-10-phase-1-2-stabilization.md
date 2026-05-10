@@ -4,7 +4,7 @@
 
 **Goal:** Stabilize the current Vue/Express Calibre app so runtime auth, app database bootstrap, builds, Docker images, and CI are reliable enough for future product work.
 
-**Architecture:** Keep Vue + Express + TypeScript + SQLite. Phase 1 standardizes backend runtime behavior around server-side Passport sessions, explicit authorization checks, app DB migrations, and route-level tests. Phase 2 makes deployment reproducible with Node 22 Docker images, nginx API proxying, Compose environment wiring, and CI build checks.
+**Architecture:** Keep Vue + Express + TypeScript + SQLite. Phase 1 standardizes backend runtime behavior around server-side Passport sessions, explicit authorization checks, app DB schema bootstrap, and route-level tests. Phase 2 makes deployment reproducible with Node 22 Docker images, nginx API proxying, Compose environment wiring, and CI build checks.
 
 **Tech Stack:** Vue 3, Vite, Pinia, Express 4, Passport Google OAuth, express-session, better-sqlite3, Vitest, Supertest, Docker, nginx, GitHub Actions.
 
@@ -364,7 +364,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
 - [ ] **Step 3: Make `/api/auth/me` responsible for reporting session state**
 
-Change `backend/src/routes/authRoutes.ts` so `GET /me` is not behind `authenticateToken`. It should report `authenticated: false` for anonymous sessions and current user/status for authenticated sessions.
+Change `backend/src/routes/authRoutes.ts` so `GET /me` is not behind `authenticateToken`. Anonymous requests should return HTTP `200` with `{ authenticated: false }`; authenticated requests should return the current user/status.
 
 - [ ] **Step 4: Simplify `getCurrentUser()`**
 
@@ -372,7 +372,7 @@ In `backend/src/controllers/authController.ts`, remove JWT parsing. Return:
 
 ```ts
 if (typeof req.isAuthenticated !== 'function' || !req.isAuthenticated() || !req.user) {
-  return res.status(401).json({ authenticated: false });
+  return res.json({ authenticated: false });
 }
 
 return res.json({
@@ -765,6 +765,7 @@ Modify `docker-compose.yml` so:
 - Backend receives `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL`, `APP_DB_PATH`, and `CALIBRE_DB_NAME`.
 - Backend mounts `${CALIBRE_DB_PATH}:/usr/src/app/data/calibre:ro`.
 - Backend stores app data in a named volume mounted at `/usr/src/app/data/app`.
+- `CALIBRE_DB_PATH` is the host directory containing the Calibre database; `CALIBRE_DB_DIR` is the container directory where that host path is mounted.
 
 - [ ] **Step 3: Align backend Calibre path handling**
 
