@@ -161,7 +161,14 @@ export class AuthService {
 
   async updateUserStatus(userId: number, status: UserStatus): Promise<User | null> {
     try {
-      const updateStmt = this.db.prepare('UPDATE users SET status = ? WHERE id = ?');
+      const updateStmt = this.db.prepare(`
+        UPDATE users
+        SET
+          status = ?,
+          created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
       updateStmt.run(status, userId);
 
       return this.getUserById(userId.toString());

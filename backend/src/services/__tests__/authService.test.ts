@@ -164,4 +164,32 @@ describe('AuthService', () => {
       expect(updateSql).toContain('updated_at = CURRENT_TIMESTAMP');
     });
   });
+
+  describe('updateUserStatus', () => {
+    it('updates timestamps when changing user status', async () => {
+      const updateStmt = { run: vi.fn() };
+      const selectStmt = {
+        get: vi.fn().mockReturnValueOnce({
+          id: 1,
+          username: 'test',
+          email: 'test@example.com',
+          google_id: 'google-123',
+          display_name: 'Test User',
+          picture: 'https://example.com/avatar.png',
+          is_admin: 0,
+          status: 'approved'
+        })
+      };
+      mockDb.prepare
+        .mockReturnValueOnce(updateStmt)
+        .mockReturnValueOnce(selectStmt);
+
+      await authService.updateUserStatus(1, 'approved');
+
+      const updateSql = mockDb.prepare.mock.calls[0][0];
+      expect(updateSql).toContain('created_at = COALESCE(created_at, CURRENT_TIMESTAMP)');
+      expect(updateSql).toContain('updated_at = CURRENT_TIMESTAMP');
+      expect(updateStmt.run).toHaveBeenCalledWith('approved', 1);
+    });
+  });
 });
