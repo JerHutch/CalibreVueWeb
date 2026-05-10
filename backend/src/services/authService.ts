@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3';
-import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
 
 export type UserStatus = 'pending' | 'approved' | 'denied';
@@ -29,25 +28,9 @@ interface UserRow {
 
 export class AuthService {
   private db: Database.Database;
-  private readonly JWT_SECRET: string;
 
   constructor(db: Database.Database) {
     this.db = db;
-    this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-  }
-
-  generateToken(user: User): string {
-    return jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        isAdmin: user.isAdmin,
-        status: user.status
-      },
-      this.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
   }
 
   async getUserById(id: string): Promise<User | null> {
@@ -65,14 +48,6 @@ export class AuthService {
     } catch (error) {
       logger.error(`Database error during get user by ID: ${error}`);
       throw error;
-    }
-  }
-
-  verifyToken(token: string): any {
-    try {
-      return jwt.verify(token, this.JWT_SECRET);
-    } catch (error) {
-      return null;
     }
   }
 

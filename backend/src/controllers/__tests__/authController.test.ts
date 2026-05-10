@@ -7,8 +7,6 @@ import logger from '../../utils/logger';
 // Define the mock service interface
 interface MockAuthService {
   validateUser: (username: string, password: string) => Promise<User | null>;
-  generateToken: (user: User) => string;
-  verifyToken: (token: string) => any;
   getUserById: (id: string) => Promise<User | null>;
 }
 
@@ -22,7 +20,11 @@ describe('Auth Controller', () => {
       body: {},
       headers: {},
       isAuthenticated: vi.fn().mockReturnValue(false),
-      user: undefined
+      user: undefined,
+      logout: vi.fn((callback: (error?: Error) => void) => callback()),
+      session: {
+        destroy: vi.fn((callback: (error?: Error) => void) => callback())
+      }
     };
     mockResponse = {
       status: vi.fn().mockReturnThis(),
@@ -30,8 +32,6 @@ describe('Auth Controller', () => {
     };
     mockAuthService = {
       validateUser: vi.fn(),
-      generateToken: vi.fn(),
-      verifyToken: vi.fn(),
       getUserById: vi.fn()
     };
 
@@ -47,9 +47,11 @@ describe('Auth Controller', () => {
   });
 
   describe('logout', () => {
-    it('should return success message', async () => {
+    it('should log out and destroy the session before returning success message', async () => {
       await logout(mockRequest as Request, mockResponse as Response);
 
+      expect(mockRequest.logout).toHaveBeenCalled();
+      expect(mockRequest.session.destroy).toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Logged out successfully'
       });
@@ -57,45 +59,45 @@ describe('Auth Controller', () => {
   });
 
   describe('getCurrentUser', () => {
-    it('should return 401 if no token is provided', async () => {
+    it('should report unauthenticated if no session is available', async () => {
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'No token provided'
+        authenticated: false
       });
     });
 
-    it('should return 401 if token is invalid', async () => {
-      mockRequest.headers = {
-        authorization: 'Bearer invalid-token'
+    it('should report unauthenticated if isAuthenticated is missing', async () => {
+      mockRequest.isAuthenticated = undefined;
+      mockRequest.user = {
+        id: 123,
+        username: 'testuser',
+        email: 'test@example.com',
+        isAdmin: false,
+        status: 'approved'
       };
-      (mockAuthService.verifyToken as any).mockReturnValue(null);
 
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'Invalid token'
+        authenticated: false
       });
     });
 
-    it('should return 404 if user is not found', async () => {
-      mockRequest.headers = {
-        authorization: 'Bearer valid-token'
-      };
-      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
-      (mockAuthService.getUserById as any).mockResolvedValue(null);
+    it('should report unauthenticated if the session has no user', async () => {
+      mockRequest.isAuthenticated.mockReturnValue(true);
 
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(404);
+      expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
-        error: 'User not found'
+        authenticated: false
       });
     });
 
-    it('should return pending status for pending users via session', async () => {
+    it('should return pending session state for pending users', async () => {
       const pendingUser: User = {
         id: 123,
         username: 'testuser',
@@ -109,44 +111,13 @@ describe('Auth Controller', () => {
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.json).toHaveBeenCalledWith({
+        authenticated: false,
+        user: pendingUser,
         status: 'pending',
-        message: 'Your account is pending approval by an administrator.',
-        user: {
-          id: pendingUser.id,
-          email: pendingUser.email,
-          status: pendingUser.status
-        }
       });
     });
 
-    it('should return pending status for pending users via token', async () => {
-      const pendingUser: User = {
-        id: 123,
-        username: 'testuser',
-        email: 'test@example.com',
-        isAdmin: false,
-        status: 'pending'
-      };
-      mockRequest.headers = {
-        authorization: 'Bearer valid-token'
-      };
-      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
-      (mockAuthService.getUserById as any).mockResolvedValue(pendingUser);
-
-      await getCurrentUser(mockRequest as Request, mockResponse as Response);
-
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        status: 'pending',
-        message: 'Your account is pending approval by an administrator.',
-        user: {
-          id: pendingUser.id,
-          email: pendingUser.email,
-          status: pendingUser.status
-        }
-      });
-    });
-
-    it('should return user data if token is valid and user is approved', async () => {
+    it('should return approved session state for approved users', async () => {
       const mockUser: User = {
         id: 123,
         username: 'testuser',
@@ -154,22 +125,40 @@ describe('Auth Controller', () => {
         isAdmin: true,
         status: 'approved'
       };
-      mockRequest.headers = {
-        authorization: 'Bearer valid-token'
-      };
-      (mockAuthService.verifyToken as any).mockReturnValue({ id: 123 });
-      (mockAuthService.getUserById as any).mockResolvedValue(mockUser);
+      mockRequest.isAuthenticated.mockReturnValue(true);
+      mockRequest.user = mockUser;
 
       await getCurrentUser(mockRequest as Request, mockResponse as Response);
 
-      expect(mockResponse.json).toHaveBeenCalledWith(mockUser);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        authenticated: true,
+        user: mockUser,
+        status: 'approved'
+      });
+    });
+
+    it('should return denied session state for denied users', async () => {
+      const deniedUser: User = {
+        id: 123,
+        username: 'testuser',
+        email: 'test@example.com',
+        isAdmin: false,
+        status: 'denied'
+      };
+      mockRequest.isAuthenticated.mockReturnValue(true);
+      mockRequest.user = deniedUser;
+
+      await getCurrentUser(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        authenticated: false,
+        user: deniedUser,
+        status: 'denied'
+      });
     });
 
     it('should handle internal server errors', async () => {
-      mockRequest.headers = {
-        authorization: 'Bearer valid-token'
-      };
-      (mockAuthService.verifyToken as any).mockImplementation(() => {
+      mockRequest.isAuthenticated.mockImplementation(() => {
         throw new Error('Internal error');
       });
 

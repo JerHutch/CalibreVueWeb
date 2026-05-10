@@ -4,13 +4,13 @@ import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
 
+// Get current user route
+router.get('/me', getCurrentUser);
+
 // Protected routes
 router.use(authenticateToken);
 
 // Logout route
 router.post('/logout', logout);
 
-// Get current user route
-router.get('/me', getCurrentUser);
-
-export default router; 
+export default router;

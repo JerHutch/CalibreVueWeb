@@ -1,12 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthService } from '../authService';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-
-// Mock bcrypt
-vi.mock('bcrypt', () => ({
-  compare: vi.fn()
-}));
 
 // Mock better-sqlite3
 vi.mock('better-sqlite3', () => {
