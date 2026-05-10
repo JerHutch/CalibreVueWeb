@@ -81,12 +81,14 @@ export function authenticateGoogle() {
 export function handleGoogleCallback() {
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const callbackUrl = `${baseUrl}/auth/google/callback`;
+    const errorRedirectUrl = `${callbackUrl}?status=error`;
     logger.info('Handling Google OAuth callback... baseUrl ' + baseUrl);
 
     return (req: Request, res: Response, next: any) => {
         passport.authenticate('google', {}, (error: unknown, user: Express.User | false, info?: { status?: string }) => {
             if (error) {
-                return next(error);
+                logger.error(`Google OAuth callback error: ${error}`);
+                return res.redirect(errorRedirectUrl);
             }
 
             if (!user) {
@@ -99,7 +101,8 @@ export function handleGoogleCallback() {
 
             req.logIn(user, (loginError) => {
                 if (loginError) {
-                    return next(loginError);
+                    logger.error(`Google OAuth session creation failed: ${loginError}`);
+                    return res.redirect(errorRedirectUrl);
                 }
 
                 return next();

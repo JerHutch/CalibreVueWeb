@@ -70,6 +70,49 @@ describe('Google Auth Controller', () => {
     );
   });
 
+  it('redirects passport callback errors to the deterministic error callback', async () => {
+    const req = { logIn: vi.fn() };
+    const res = { redirect: vi.fn() } as unknown as Response;
+    const next = vi.fn();
+
+    authenticateMock.mockImplementationOnce((_strategy, _options, callback) => {
+      return () => callback(new Error('oauth failure'), false, undefined);
+    });
+
+    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const middleware = handleGoogleCallback();
+    middleware(req as any, res, next);
+
+    expect(req.logIn).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith(
+      'http://localhost:5173/auth/google/callback?status=error'
+    );
+  });
+
+  it('redirects login failures to the deterministic error callback', async () => {
+    const user = { id: 1, email: 'approved@example.com', status: 'approved' };
+    const req = {
+      logIn: vi.fn((_user, callback: (error?: Error) => void) => callback(new Error('session failure')))
+    };
+    const res = { redirect: vi.fn() } as unknown as Response;
+    const next = vi.fn();
+
+    authenticateMock.mockImplementationOnce((_strategy, _options, callback) => {
+      return () => callback(null, user, undefined);
+    });
+
+    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const middleware = handleGoogleCallback();
+    middleware(req as any, res, next);
+
+    expect(req.logIn).toHaveBeenCalledWith(user, expect.any(Function));
+    expect(next).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith(
+      'http://localhost:5173/auth/google/callback?status=error'
+    );
+  });
+
   it('creates a session for approved users and redirects to the approved callback', async () => {
     const user = { id: 1, email: 'approved@example.com', status: 'approved' };
     const req = {
