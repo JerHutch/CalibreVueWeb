@@ -38,7 +38,7 @@ export class AuthService {
 
   generateToken(user: User): string {
     return jwt.sign(
-      { 
+      {
         id: user.id,
         email: user.email,
         username: user.username,
@@ -90,10 +90,20 @@ export class AuthService {
         if (!row) {
           // Create new user with pending status
           const insertStmt = this.db.prepare(`
-            INSERT INTO users (username, email, google_id, display_name, picture, is_admin, status)
-            VALUES (?, ?, ?, ?, ?, 0, 'pending')
+            INSERT INTO users (
+              username,
+              email,
+              google_id,
+              display_name,
+              picture,
+              is_admin,
+              status,
+              created_at,
+              updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, 0, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           `);
-          
+
           const result = insertStmt.run(
             profile.emails[0].value.split('@')[0],
             profile.emails[0].value,
@@ -108,11 +118,16 @@ export class AuthService {
         } else {
           // Update existing user with Google info
           const updateStmt = this.db.prepare(`
-            UPDATE users 
-            SET google_id = ?, display_name = ?, picture = ?
+            UPDATE users
+            SET
+              google_id = ?,
+              display_name = ?,
+              picture = ?,
+              created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+              updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `);
-          
+
           updateStmt.run(
             profile.id,
             profile.displayName,
@@ -136,7 +151,7 @@ export class AuthService {
     try {
       const stmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE status = ?`);
       const rows = stmt.all('pending') as UserRow[];
-      
+
       return rows.map(row => this.mapUser(row));
     } catch (error) {
       logger.error(`Error getting pending users: ${error}`);
@@ -148,7 +163,7 @@ export class AuthService {
     try {
       const updateStmt = this.db.prepare('UPDATE users SET status = ? WHERE id = ?');
       updateStmt.run(status, userId);
-      
+
       return this.getUserById(userId.toString());
     } catch (error) {
       logger.error(`Error updating user status: ${error}`);
@@ -168,4 +183,4 @@ export class AuthService {
       status: row.status
     };
   }
-} 
+}

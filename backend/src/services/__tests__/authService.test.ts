@@ -51,8 +51,6 @@ describe('AuthService', () => {
     authService = new AuthService(mockDb);
   });
 
-  
-
   describe('getUserById', () => {
     it('should return null if user is not found', async () => {
       mockPreparedStatement.get.mockReturnValueOnce(null);
@@ -90,4 +88,80 @@ describe('AuthService', () => {
     });
   });
 
-}); 
+  describe('findOrCreateUser', () => {
+    it('explicitly sets timestamps when creating a user', async () => {
+      const googleLookupStmt = { get: vi.fn().mockReturnValueOnce(undefined) };
+      const emailLookupStmt = { get: vi.fn().mockReturnValueOnce(undefined) };
+      const insertStmt = { run: vi.fn().mockReturnValueOnce({ lastInsertRowid: 1 }) };
+      const newUserStmt = {
+        get: vi.fn().mockReturnValueOnce({
+          id: 1,
+          username: 'test',
+          email: 'test@example.com',
+          google_id: 'google-123',
+          display_name: 'Test User',
+          picture: 'https://example.com/avatar.png',
+          is_admin: 0,
+          status: 'pending'
+        })
+      };
+      mockDb.prepare
+        .mockReturnValueOnce(googleLookupStmt)
+        .mockReturnValueOnce(emailLookupStmt)
+        .mockReturnValueOnce(insertStmt)
+        .mockReturnValueOnce(newUserStmt);
+
+      await authService.findOrCreateUser({
+        id: 'google-123',
+        displayName: 'Test User',
+        emails: [{ value: 'test@example.com' }],
+        photos: [{ value: 'https://example.com/avatar.png' }]
+      });
+
+      const insertSql = mockDb.prepare.mock.calls[2][0];
+      expect(insertSql).toContain('created_at');
+      expect(insertSql).toContain('updated_at');
+      expect(insertSql).toContain('CURRENT_TIMESTAMP');
+    });
+
+    it('updates timestamps when linking Google info to an existing user', async () => {
+      const existingUser = {
+        id: 1,
+        username: 'test',
+        email: 'test@example.com',
+        google_id: null,
+        display_name: null,
+        picture: null,
+        is_admin: 0,
+        status: 'pending'
+      };
+      const googleLookupStmt = { get: vi.fn().mockReturnValueOnce(undefined) };
+      const emailLookupStmt = { get: vi.fn().mockReturnValueOnce(existingUser) };
+      const updateStmt = { run: vi.fn() };
+      const updatedUserStmt = {
+        get: vi.fn().mockReturnValueOnce({
+          ...existingUser,
+          google_id: 'google-123',
+          display_name: 'Test User',
+          picture: 'https://example.com/avatar.png'
+        })
+      };
+      mockDb.prepare
+        .mockReturnValueOnce(googleLookupStmt)
+        .mockReturnValueOnce(emailLookupStmt)
+        .mockReturnValueOnce(updateStmt)
+        .mockReturnValueOnce(updatedUserStmt);
+
+      await authService.findOrCreateUser({
+        id: 'google-123',
+        displayName: 'Test User',
+        emails: [{ value: 'test@example.com' }],
+        photos: [{ value: 'https://example.com/avatar.png' }]
+      });
+
+      const updateSql = mockDb.prepare.mock.calls[2][0];
+      expect(updateSql).toContain('created_at = COALESCE(created_at, CURRENT_TIMESTAMP)');
+      expect(updateSql).toContain('updated_at = CURRENT_TIMESTAMP');
+    });
+  });
+});

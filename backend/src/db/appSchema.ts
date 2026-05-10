@@ -31,6 +31,7 @@ export function initializeAppSchema(db: Database.Database) {
   `);
 
   ensureUserColumns(db);
+  backfillUserTimestamps(db);
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -48,4 +49,14 @@ function ensureUserColumns(db: Database.Database) {
       db.exec(`ALTER TABLE users ADD COLUMN ${column.name} ${column.definition}`);
     }
   }
+}
+
+function backfillUserTimestamps(db: Database.Database) {
+  db.exec(`
+    UPDATE users
+    SET
+      created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+      updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)
+    WHERE created_at IS NULL OR updated_at IS NULL;
+  `);
 }

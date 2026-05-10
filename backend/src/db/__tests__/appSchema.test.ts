@@ -42,6 +42,7 @@ describe('initializeAppSchema', () => {
         email TEXT NOT NULL
       );
     `);
+    db.prepare('INSERT INTO users (username, email) VALUES (?, ?)').run('existing', 'existing@example.com');
 
     initializeAppSchema(db);
 
@@ -66,8 +67,26 @@ describe('initializeAppSchema', () => {
       'idx_users_status'
     ]));
 
-    db.prepare('INSERT INTO users (username, email) VALUES (?, ?)').run('existing', 'existing@example.com');
-    const row = db.prepare('SELECT is_admin, status FROM users WHERE email = ?').get('existing@example.com');
-    expect(row).toEqual({ is_admin: 0, status: 'pending' });
+    const row = db.prepare(`
+      SELECT username, email, is_admin, status, created_at, updated_at
+      FROM users
+      WHERE email = ?
+    `).get('existing@example.com') as {
+      username: string;
+      email: string;
+      is_admin: number;
+      status: string;
+      created_at: string | null;
+      updated_at: string | null;
+    };
+
+    expect(row).toMatchObject({
+      username: 'existing',
+      email: 'existing@example.com',
+      is_admin: 0,
+      status: 'pending'
+    });
+    expect(row.created_at).toEqual(expect.any(String));
+    expect(row.updated_at).toEqual(expect.any(String));
   });
 });
