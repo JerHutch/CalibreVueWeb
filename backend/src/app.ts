@@ -1,5 +1,4 @@
 import express from 'express';
-import type { RequestHandler } from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import passport from 'passport';
@@ -36,11 +35,11 @@ export function createApp({ calibreService, authService }: AppServices) {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000
     }
-  }) as unknown as RequestHandler;
+  });
 
   app.use(sessionMiddleware);
-  app.use(passport.initialize() as unknown as RequestHandler);
-  app.use(passport.session() as unknown as RequestHandler);
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   initializeBookController(calibreService);
   initializeAuthController(authService);
