@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
 
 export type UserStatus = 'pending' | 'approved' | 'denied';
+const USER_SELECT_COLUMNS = 'id, username, email, google_id, display_name, picture, is_admin, status';
 
 export interface User {
   id: number;
@@ -53,20 +54,14 @@ export class AuthService {
     logger.info(`Getting user by ID: ${id}`);
 
     try {
-      const stmt = this.db.prepare('SELECT id, username, email, is_admin, status FROM users WHERE id = ?');
+      const stmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`);
       const row = stmt.get(id) as UserRow | undefined;
 
       if (!row) {
         return null;
       }
 
-      return {
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        isAdmin: row.is_admin === 1,
-        status: row.status
-      };
+      return this.mapUser(row);
     } catch (error) {
       logger.error(`Database error during get user by ID: ${error}`);
       throw error;
@@ -84,12 +79,12 @@ export class AuthService {
   async findOrCreateUser(profile: any): Promise<User | null> {
     try {
       // Check if user exists with this Google ID
-      const stmt = this.db.prepare('SELECT * FROM users WHERE google_id = ?');
+      const stmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE google_id = ?`);
       let row = stmt.get(profile.id) as UserRow | undefined;
 
       if (!row) {
         // Check if user exists with this email
-        const emailStmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
+        const emailStmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE email = ?`);
         row = emailStmt.get(profile.emails[0].value) as UserRow | undefined;
 
         if (!row) {
@@ -108,7 +103,7 @@ export class AuthService {
           );
 
           // Get the newly created user
-          const newUserStmt = this.db.prepare('SELECT * FROM users WHERE id = ?');
+          const newUserStmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`);
           row = newUserStmt.get(result.lastInsertRowid) as UserRow;
         } else {
           // Update existing user with Google info
@@ -124,19 +119,13 @@ export class AuthService {
             profile.photos?.[0]?.value,
             row.id
           );
+
+          const updatedUserStmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`);
+          row = updatedUserStmt.get(row.id) as UserRow;
         }
       }
 
-      return {
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        isAdmin: row.is_admin === 1,
-        googleId: row.google_id,
-        displayName: row.display_name,
-        picture: row.picture,
-        status: row.status
-      };
+      return this.mapUser(row);
     } catch (error) {
       logger.error(`Error in findOrCreateUser: ${error}`);
       return null;
@@ -145,19 +134,10 @@ export class AuthService {
 
   async getPendingUsers(): Promise<User[]> {
     try {
-      const stmt = this.db.prepare('SELECT * FROM users WHERE status = ?');
+      const stmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE status = ?`);
       const rows = stmt.all('pending') as UserRow[];
       
-      return rows.map(row => ({
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        isAdmin: row.is_admin === 1,
-        googleId: row.google_id,
-        displayName: row.display_name,
-        picture: row.picture,
-        status: row.status
-      }));
+      return rows.map(row => this.mapUser(row));
     } catch (error) {
       logger.error(`Error getting pending users: ${error}`);
       throw error;
@@ -174,5 +154,18 @@ export class AuthService {
       logger.error(`Error updating user status: ${error}`);
       throw error;
     }
+  }
+
+  private mapUser(row: UserRow): User {
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      isAdmin: row.is_admin === 1,
+      googleId: row.google_id,
+      displayName: row.display_name,
+      picture: row.picture,
+      status: row.status
+    };
   }
 } 

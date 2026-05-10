@@ -67,7 +67,11 @@ describe('AuthService', () => {
         id: 1,
         username: 'testuser',
         email: 'test@example.com',
-        is_admin: 1
+        google_id: 'google-123',
+        display_name: 'Test User',
+        picture: 'https://example.com/avatar.png',
+        is_admin: 1,
+        status: 'approved'
       };
       mockPreparedStatement.get.mockReturnValueOnce(mockUser);
 
@@ -76,7 +80,11 @@ describe('AuthService', () => {
         id: mockUser.id,
         username: mockUser.username,
         email: mockUser.email,
-        isAdmin: true
+        isAdmin: true,
+        googleId: mockUser.google_id,
+        displayName: mockUser.display_name,
+        picture: mockUser.picture,
+        status: mockUser.status
       });
       expect(mockDb.prepare).toHaveBeenCalled();
     });

@@ -5,6 +5,7 @@ import { AuthService } from './services/authService';
 import { createApp } from './app';
 import logger from './utils/logger';
 import Database from 'better-sqlite3';
+import { initializeAppSchema } from './db/appSchema';
 
 // Load environment variables from .development.env
 const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.development.env';
@@ -36,6 +37,7 @@ try {
   
   console.log(`Attempting to connect to application database at: ${process.env.APP_DB_PATH || 'app.db'}`);
   const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
+  initializeAppSchema(appDb);
   console.log('Successfully connected to application database');
 
   const calibreService = new CalibreService(calibreDb, calibreDbPath);
