@@ -20,13 +20,3 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     res.status(500).json({ error: 'Internal server error' });
   }
 };
-
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-      isAuthenticated?(): boolean;
-    }
-  }
-} 
