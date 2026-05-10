@@ -28,13 +28,12 @@ export function createApp({ calibreService, authService }: AppServices) {
   app.use(express.json());
   app.use(requestLogger);
   const sessionMiddleware = session({
-    secret: process.env.SESSION_SECRET || 'development-session-secret',
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     }
   }) as unknown as RequestHandler;
