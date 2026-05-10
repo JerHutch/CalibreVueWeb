@@ -40,9 +40,40 @@ describe('Auth Controller', () => {
 
       expect(mockRequest.logout).toHaveBeenCalled();
       expect(mockRequest.session.destroy).toHaveBeenCalled();
+      expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Logged out successfully'
       });
+    });
+
+    it('should return an error if logout fails', async () => {
+      mockRequest.logout = vi.fn((callback: (error?: Error) => void) => {
+        callback(new Error('Logout failed'));
+      });
+
+      await logout(mockRequest as Request, mockResponse as Response);
+
+      expect(mockRequest.session.destroy).not.toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Logout failed'
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should return an error if session destroy fails', async () => {
+      mockRequest.session.destroy = vi.fn((callback: (error?: Error) => void) => {
+        callback(new Error('Session destroy failed'));
+      });
+
+      await logout(mockRequest as Request, mockResponse as Response);
+
+      expect(mockRequest.logout).toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: 'Logout failed'
+      });
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -101,7 +132,7 @@ describe('Auth Controller', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         authenticated: false,
         user: pendingUser,
-        status: 'pending',
+        status: 'pending'
       });
     });
 

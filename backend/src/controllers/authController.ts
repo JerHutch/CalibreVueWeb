@@ -4,28 +4,36 @@ import logger from '../utils/logger';
 
 export const logout = async (req: Request, res: Response) => {
   if (typeof req.logout === 'function') {
-    await new Promise<void>((resolve) => {
+    const logoutError = await new Promise<Error | undefined>((resolve) => {
       req.logout((error) => {
         if (error) {
           logger.error(`Logout error: ${error}`);
         }
-        resolve();
+        resolve(error);
       });
     });
+
+    if (logoutError) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
   }
 
   if (req.session && typeof req.session.destroy === 'function') {
-    await new Promise<void>((resolve) => {
+    const destroyError = await new Promise<Error | undefined>((resolve) => {
       req.session.destroy((error) => {
         if (error) {
           logger.error(`Session destroy error: ${error}`);
         }
-        resolve();
+        resolve(error);
       });
     });
+
+    if (destroyError) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
   }
 
-  res.json({ message: 'Logged out successfully' });
+  return res.json({ message: 'Logged out successfully' });
 };
 
 export const getCurrentUser = async (req: Request, res: Response) => {
