@@ -6,10 +6,8 @@ import { setupRoutes } from './routes';
 import { CalibreService } from './services/calibreService';
 import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
-import { initializeController as initializeAuthController } from './controllers/authController';
 import { initializeController as initializeGoogleAuthController } from './controllers/googleAuthController';
 import { initializeController as initializeAdminController } from './controllers/adminController';
-import { initializeMiddleware as initializeAuthMiddleware } from './middleware/authMiddleware';
 import { requestLogger } from './middleware/loggingMiddleware';
 
 export interface AppServices {
@@ -42,10 +40,8 @@ export function createApp({ calibreService, authService }: AppServices) {
   app.use(passport.session());
 
   initializeBookController(calibreService);
-  initializeAuthController(authService);
   initializeGoogleAuthController(authService);
   initializeAdminController(authService);
-  initializeAuthMiddleware(authService);
 
   setupRoutes(app);
 

@@ -1,19 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { logout, getCurrentUser, initializeController } from '../authController';
-import { AuthService, User } from '../../services/authService';
+import { logout, getCurrentUser } from '../authController';
+import { User } from '../../services/authService';
 import logger from '../../utils/logger';
-
-// Define the mock service interface
-interface MockAuthService {
-  validateUser: (username: string, password: string) => Promise<User | null>;
-  getUserById: (id: string) => Promise<User | null>;
-}
 
 describe('Auth Controller', () => {
   let mockRequest: any;
   let mockResponse: Partial<Response>;
-  let mockAuthService: MockAuthService;
 
   beforeEach(() => {
     mockRequest = {
@@ -30,15 +23,10 @@ describe('Auth Controller', () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn()
     };
-    mockAuthService = {
-      validateUser: vi.fn(),
-      getUserById: vi.fn()
-    };
 
     // Mock logger.error
     vi.spyOn(logger, 'error').mockImplementation(() => {});
 
-    initializeController(mockAuthService as unknown as AuthService);
     vi.clearAllMocks();
   });
 

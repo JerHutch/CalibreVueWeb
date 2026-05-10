@@ -1,11 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthService, User } from '../services/authService';
+import { User } from '../services/authService';
 import logger from '../utils/logger';
 
-let authService: AuthService | undefined;
+export const authenticateSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
+      return next();
+    }
 
-export const initializeMiddleware = (service: AuthService) => {
-  authService = service;
+    return res.status(401).json({ error: 'Authentication required' });
+  } catch (error) {
+    logger.error(`Authentication error: ${error}`);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {

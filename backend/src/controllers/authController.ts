@@ -1,12 +1,6 @@
 import { Request, Response } from 'express';
-import { AuthService, User } from '../services/authService';
+import { User } from '../services/authService';
 import logger from '../utils/logger';
-
-let authService: AuthService;
-
-export const initializeController = (service: AuthService) => {
-  authService = service;
-};
 
 export const logout = async (req: Request, res: Response) => {
   if (typeof req.logout === 'function') {

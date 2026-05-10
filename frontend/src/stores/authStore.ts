@@ -18,6 +18,8 @@ interface User {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const error = ref<string | null>(null);
+  const isAuthInitialized = ref(false);
+  let authInitializationPromise: Promise<void> | null = null;
 
   // Computed
   const isAuthenticated = computed(() => !!user.value && user.value.status === 'approved');
@@ -44,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       user.value = userData;
+      isAuthInitialized.value = true;
       return response.data;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Login failed';
@@ -65,7 +68,23 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = userData;
     } catch (err) {
       reset();
+    } finally {
+      isAuthInitialized.value = true;
     }
+  }
+
+  async function ensureAuthInitialized() {
+    if (isAuthInitialized.value) {
+      return;
+    }
+
+    if (!authInitializationPromise) {
+      authInitializationPromise = checkAuth().finally(() => {
+        authInitializationPromise = null;
+      });
+    }
+
+    await authInitializationPromise;
   }
 
   async function logout() {
@@ -87,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
     // State
     user,
     error,
+    isAuthInitialized,
     // Computed
     isAuthenticated,
     isAdmin,
@@ -95,6 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     login,
     checkAuth,
+    ensureAuthInitialized,
     logout,
     reset
   };
