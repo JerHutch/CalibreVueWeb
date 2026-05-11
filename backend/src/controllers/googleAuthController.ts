@@ -13,9 +13,9 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 let authService: AuthService;
 
-export function initializeController(authService: AuthService) {
-    logger.info('Initializing Google Auth Controller...');
-    
+export function initializePassportSession(authService: AuthService) {
+    logger.info('Initializing passport session support...');
+
     // Configure passport serialization
     passport.serializeUser((user: any, done) => {
         logger.info(`Serializing user with ID: ${user.id}`);
@@ -33,7 +33,9 @@ export function initializeController(authService: AuthService) {
             done(error, null);
         }
     });
+}
 
+export function initializeGoogleStrategy(authService: AuthService) {
     logger.info('Setting up Google Strategy...');
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
@@ -68,6 +70,11 @@ export function initializeController(authService: AuthService) {
             }
         }
     ));
+}
+
+export function initializeController(authService: AuthService) {
+    initializePassportSession(authService);
+    initializeGoogleStrategy(authService);
 }
 
 export function authenticateGoogle() {

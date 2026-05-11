@@ -6,7 +6,10 @@ import { setupRoutes } from './routes';
 import { CalibreService } from './services/calibreService';
 import { AuthService } from './services/authService';
 import { initializeController as initializeBookController } from './controllers/bookController';
-import { initializeController as initializeGoogleAuthController } from './controllers/googleAuthController';
+import {
+  initializeGoogleStrategy,
+  initializePassportSession
+} from './controllers/googleAuthController';
 import { initializeController as initializeAdminController } from './controllers/adminController';
 import { requestLogger } from './middleware/loggingMiddleware';
 
@@ -16,6 +19,9 @@ export interface AppServices {
 }
 
 export interface CreateAppOptions {
+  // Test-only switch for route integration coverage that does not exercise OAuth routes.
+  enableGoogleAuth?: boolean;
+  // Test-only authenticated user injection using Passport's req.login/session flow.
   testAuthUser?: Express.User;
 }
 
@@ -45,16 +51,24 @@ export function createApp(
   app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
-  if (options.testAuthUser) {
+  initializePassportSession(authService);
+  const { testAuthUser } = options;
+  if (testAuthUser) {
     app.use((req, _res, next) => {
-      req.user = options.testAuthUser;
-      req.isAuthenticated = (() => true) as typeof req.isAuthenticated;
-      next();
+      req.login(testAuthUser, (error) => {
+        if (error) {
+          return next(error);
+        }
+
+        return next();
+      });
     });
   }
 
   initializeBookController(calibreService);
-  initializeGoogleAuthController(authService);
+  if (options.enableGoogleAuth !== false) {
+    initializeGoogleStrategy(authService);
+  }
   initializeAdminController(authService);
 
   setupRoutes(app);

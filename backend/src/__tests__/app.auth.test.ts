@@ -4,10 +4,6 @@ import { createApp } from '../app';
 import { AuthService, User } from '../services/authService';
 import { CalibreService } from '../services/calibreService';
 
-process.env.GOOGLE_CLIENT_ID ??= 'test-google-client-id';
-process.env.GOOGLE_CLIENT_SECRET ??= 'test-google-client-secret';
-process.env.GOOGLE_CALLBACK_URL ??= 'http://localhost:3001/api/auth/google/callback';
-
 const approvedUser: User = {
   id: 1,
   username: 'reader',
@@ -62,7 +58,10 @@ const createTestApp = (testAuthUser?: User) => {
   return {
     app: createApp(
       { calibreService, authService },
-      testAuthUser ? { testAuthUser } : undefined
+      {
+        enableGoogleAuth: false,
+        ...(testAuthUser ? { testAuthUser } : {})
+      }
     ),
     calibreService,
     authService
