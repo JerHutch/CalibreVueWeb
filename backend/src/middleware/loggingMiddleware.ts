@@ -1,15 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
 
+const REDACTED_VALUE = '********';
+
+const isSensitiveKey = (key: string): boolean => {
+  const normalizedKey = key.toLowerCase();
+
+  return (
+    normalizedKey === 'authorization' ||
+    normalizedKey === 'cookie' ||
+    normalizedKey === 'set-cookie' ||
+    normalizedKey.includes('token') ||
+    normalizedKey.includes('secret') ||
+    normalizedKey.includes('key') ||
+    normalizedKey === 'password'
+  );
+};
+
 const maskSensitiveData = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
   
   const masked = { ...obj };
-  const sensitiveFields = ['password', 'token', 'secret', 'key'];
   
   Object.keys(masked).forEach(key => {
-    if (sensitiveFields.includes(key.toLowerCase())) {
-      masked[key] = '********';
+    if (isSensitiveKey(key)) {
+      masked[key] = REDACTED_VALUE;
     } else if (typeof masked[key] === 'object') {
       masked[key] = maskSensitiveData(masked[key]);
     }
@@ -23,7 +38,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   
   // Log request details
   logger.info(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  logger.info('Headers: ' + JSON.stringify(req.headers, null, 2));
+  logger.info('Headers: ' + JSON.stringify(maskSensitiveData(req.headers), null, 2));
   if (req.body && Object.keys(req.body).length > 0) {
     logger.info('Body: ' + JSON.stringify(maskSensitiveData(req.body), null, 2));
   }
@@ -38,4 +53,4 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   });
 
   next();
-}; 
+};

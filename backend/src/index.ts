@@ -11,17 +11,11 @@ import { initializeAppSchema } from './db/appSchema';
 const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.development.env';
 dotenv.config({ path: envFile });
 
-// Log all environment variables
-logger.info('Environment Variables:');
-logger.info('---------------------');
-Object.keys(process.env).forEach(key => {
-    // Mask sensitive values
-    const value = ['SESSION_SECRET', 'GOOGLE_CLIENT_SECRET'].includes(key) 
-        ? '********' 
-        : process.env[key];
-    logger.info(`${key}: ${value}`);
-});
-logger.info('---------------------');
+logger.info(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+logger.info(`PORT: ${process.env.PORT || 3000}`);
+logger.info(`FRONTEND_URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+logger.info(`CALIBRE_DB_NAME: ${process.env.CALIBRE_DB_NAME || 'bob.db'}`);
+logger.info(`APP_DB_PATH: ${process.env.APP_DB_PATH || 'app.db'}`);
 
 const port = process.env.PORT || 3000;
 
