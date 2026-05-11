@@ -33,11 +33,32 @@ const maskSensitiveData = (obj: any): any => {
   return masked;
 };
 
+const sanitizeUrl = (originalUrl: string): string => {
+  const [path, queryString] = originalUrl.split('?', 2);
+
+  if (!queryString) {
+    return path;
+  }
+
+  const queryParams = new URLSearchParams(queryString);
+
+  queryParams.forEach((value, key) => {
+    if (isSensitiveKey(key) || key.toLowerCase() === 'code') {
+      queryParams.set(key, REDACTED_VALUE);
+    }
+  });
+
+  const sanitizedQuery = queryParams.toString();
+
+  return sanitizedQuery ? `${path}?${sanitizedQuery}` : path;
+};
+
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
+  const sanitizedUrl = sanitizeUrl(req.originalUrl);
   
   // Log request details
-  logger.info(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  logger.info(`[${new Date().toISOString()}] ${req.method} ${sanitizedUrl}`);
   logger.info('Headers: ' + JSON.stringify(maskSensitiveData(req.headers), null, 2));
   if (req.body && Object.keys(req.body).length > 0) {
     logger.info('Body: ' + JSON.stringify(maskSensitiveData(req.body), null, 2));
@@ -49,7 +70,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
   // Log response details when the response is finished
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+    logger.info(`[${new Date().toISOString()}] ${req.method} ${sanitizedUrl} - ${res.statusCode} (${duration}ms)`);
   });
 
   next();

@@ -10,6 +10,40 @@ describe('requestLogger', () => {
     vi.clearAllMocks();
   });
 
+  it('redacts sensitive query parameter values in request and response log lines', () => {
+    const finishHandlers: Array<() => void> = [];
+    const req = {
+      method: 'GET',
+      originalUrl:
+        '/api/callback?code=oauth-code&token=abc123&apiKey=xyz789&redirect=%2Fbooks&client_secret=super-secret',
+      headers: {},
+      body: {}
+    };
+    const res = {
+      statusCode: 200,
+      on: vi.fn((event: string, handler: () => void) => {
+        if (event === 'finish') {
+          finishHandlers.push(handler);
+        }
+      })
+    };
+
+    requestLogger(req as any, res as any, next);
+    finishHandlers.forEach(handler => handler());
+
+    expect(infoSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(
+        /\] GET \/api\/callback\?code=\*{8}&token=\*{8}&apiKey=\*{8}&redirect=%2Fbooks&client_secret=\*{8}$/
+      )
+    );
+    expect(infoSpy).toHaveBeenLastCalledWith(
+      expect.stringMatching(
+        /\] GET \/api\/callback\?code=\*{8}&token=\*{8}&apiKey=\*{8}&redirect=%2Fbooks&client_secret=\*{8} - 200 \(\d+ms\)$/
+      )
+    );
+  });
+
   it('redacts sensitive request headers before logging', () => {
     const req = {
       method: 'GET',
