@@ -15,7 +15,14 @@ export interface AppServices {
   authService: AuthService;
 }
 
-export function createApp({ calibreService, authService }: AppServices) {
+export interface CreateAppOptions {
+  testAuthUser?: Express.User;
+}
+
+export function createApp(
+  { calibreService, authService }: AppServices,
+  options: CreateAppOptions = {}
+) {
   const app = express();
 
   app.use(cors({
@@ -38,6 +45,13 @@ export function createApp({ calibreService, authService }: AppServices) {
   app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
+  if (options.testAuthUser) {
+    app.use((req, _res, next) => {
+      req.user = options.testAuthUser;
+      req.isAuthenticated = (() => true) as typeof req.isAuthenticated;
+      next();
+    });
+  }
 
   initializeBookController(calibreService);
   initializeGoogleAuthController(authService);
