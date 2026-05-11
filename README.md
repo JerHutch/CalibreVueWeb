@@ -83,20 +83,40 @@ This project follows a modern full-stack architecture:
    cd CalibreWebApp
    ```
 
-2. **Configure environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   CALIBRE_DB_PATH=/path/to/your/calibre/library
-   JWT_SECRET=your-jwt-secret
-   GOOGLE_CLIENT_ID=your-google-client-id
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   ADMIN_EMAIL=your-admin-email@example.com
+2. **Create your root environment file**
+   ```bash
+   cp .env.example .env
    ```
 
-3. **Start with Docker Compose**
+3. **Configure environment variables**
+
+   Edit `.env` and set:
+   - `CALIBRE_DB_PATH` to the host directory that contains your Calibre database file
+   - `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`
+   - `FRONTEND_URL` if you are not using `http://localhost:8888`
+
+   The default Compose values are:
+   ```env
+   FRONTEND_PORT=8888
+   BACKEND_PORT=3000
+   CALIBRE_DB_NAME=metadata.db
+   APP_DB_PATH=/usr/src/app/data/app/app.db
+   ```
+
+4. **Configure Google OAuth**
+
+   Set the callback URL to:
+   - `http://localhost:8888/api/auth/google/callback` for local Compose
+   - `<your-frontend-origin>/api/auth/google/callback` for a deployed environment
+
+5. **Start with Docker Compose**
    ```bash
-   docker-compose up -d
+   docker compose up --build
+   ```
+
+   If you only have the legacy CLI installed, use:
+   ```bash
+   docker-compose up --build
    ```
 
    The application will be available at:

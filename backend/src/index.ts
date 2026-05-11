@@ -14,23 +14,24 @@ dotenv.config({ path: envFile });
 logger.info(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 logger.info(`PORT: ${process.env.PORT || 3000}`);
 logger.info(`FRONTEND_URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-logger.info(`CALIBRE_DB_NAME: ${process.env.CALIBRE_DB_NAME || 'bob.db'}`);
-logger.info(`APP_DB_PATH: ${process.env.APP_DB_PATH || 'app.db'}`);
+logger.info(`CALIBRE_DB_NAME: ${process.env.CALIBRE_DB_NAME || 'metadata.db'}`);
+logger.info(`APP_DB_PATH: ${process.env.APP_DB_PATH || '/usr/src/app/data/app/app.db'}`);
 
 const port = process.env.PORT || 3000;
 
 // Initialize services
-const calibreDbDir = './data';
-const calibreDbName = process.env.CALIBRE_DB_NAME || 'bob.db';
+const calibreDbDir = process.env.CALIBRE_DB_DIR || '/usr/src/app/data/calibre';
+const calibreDbName = process.env.CALIBRE_DB_NAME || 'metadata.db';
 const calibreDbPath = path.join(calibreDbDir, calibreDbName);
+const appDbPath = process.env.APP_DB_PATH || '/usr/src/app/data/app/app.db';
 
 try {
   console.log(`Attempting to connect to Calibre database at: ${calibreDbPath}`);
   const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
   console.log('Successfully connected to Calibre database');
   
-  console.log(`Attempting to connect to application database at: ${process.env.APP_DB_PATH || 'app.db'}`);
-  const appDb = new Database(process.env.APP_DB_PATH || 'app.db');
+  console.log(`Attempting to connect to application database at: ${appDbPath}`);
+  const appDb = new Database(appDbPath);
   initializeAppSchema(appDb);
   console.log('Successfully connected to application database');
 
