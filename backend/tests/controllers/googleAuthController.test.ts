@@ -20,7 +20,7 @@ describe('Google Auth Controller', () => {
     const middleware = vi.fn();
     authenticateMock.mockReturnValueOnce(middleware);
 
-    const { authenticateGoogle } = await import('../googleAuthController.js');
+    const { authenticateGoogle } = await import('../../src/controllers/googleAuthController.js');
     const result = authenticateGoogle();
 
     expect(authenticateMock).toHaveBeenCalledWith('google', {
@@ -39,7 +39,7 @@ describe('Google Auth Controller', () => {
       return () => callback(null, false, { status: 'pending' });
     });
 
-    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const { handleGoogleCallback } = await import('../../src/controllers/googleAuthController.js');
     const middleware = handleGoogleCallback();
     middleware(req as any, res, next);
 
@@ -59,7 +59,7 @@ describe('Google Auth Controller', () => {
       return () => callback(null, false, { status: 'denied' });
     });
 
-    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const { handleGoogleCallback } = await import('../../src/controllers/googleAuthController.js');
     const middleware = handleGoogleCallback();
     middleware(req as any, res, next);
 
@@ -79,7 +79,7 @@ describe('Google Auth Controller', () => {
       return () => callback(new Error('oauth failure'), false, undefined);
     });
 
-    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const { handleGoogleCallback } = await import('../../src/controllers/googleAuthController.js');
     const middleware = handleGoogleCallback();
     middleware(req as any, res, next);
 
@@ -102,7 +102,7 @@ describe('Google Auth Controller', () => {
       return () => callback(null, user, undefined);
     });
 
-    const { handleGoogleCallback } = await import('../googleAuthController.js');
+    const { handleGoogleCallback } = await import('../../src/controllers/googleAuthController.js');
     const middleware = handleGoogleCallback();
     middleware(req as any, res, next);
 
@@ -125,7 +125,7 @@ describe('Google Auth Controller', () => {
       return () => callback(null, user, undefined);
     });
 
-    const { handleGoogleCallback, redirectAfterAuth } = await import('../googleAuthController.js');
+    const { handleGoogleCallback, redirectAfterAuth } = await import('../../src/controllers/googleAuthController.js');
     const middleware = handleGoogleCallback();
     middleware(req as any, res, next);
 

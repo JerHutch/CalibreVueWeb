@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { logout, getCurrentUser } from '../authController';
-import { User } from '../../services/authService';
-import logger from '../../utils/logger';
+import { logout, getCurrentUser } from '../../src/controllers/authController';
+import { User } from '../../src/services/authService';
+import logger from '../../src/utils/logger';
 
 describe('Auth Controller', () => {
   let mockRequest: any;

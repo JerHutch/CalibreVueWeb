@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response } from 'express';
-import { AuthenticatedRequest } from '../../types/express';
-import { getBooks, getBookById, initializeController, getBookCover, downloadBook } from '../bookController';
-import { CalibreService } from '../../services/calibreService';
+import { AuthenticatedRequest } from '../../src/types/express';
+import { getBooks, getBookById, initializeController, getBookCover, downloadBook } from '../../src/controllers/bookController';
+import { CalibreService } from '../../src/services/calibreService';
 import fs from 'fs';
 
 // Mock the CalibreService
-vi.mock('../../services/calibreService', () => ({
+vi.mock('../../src/services/calibreService', () => ({
   CalibreService: vi.fn().mockImplementation(() => ({
     getBooks: vi.fn(),
     getBookById: vi.fn(),

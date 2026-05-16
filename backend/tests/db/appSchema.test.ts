@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
-import { initializeAppSchema } from '../appSchema';
+import { initializeAppSchema } from '../../src/db/appSchema';
 
 describe('initializeAppSchema', () => {
   it('creates users table with approval fields', () => {

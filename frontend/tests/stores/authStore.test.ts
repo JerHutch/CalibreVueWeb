@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useAuthStore } from '../authStore';
+import { useAuthStore } from '../../src/stores/authStore';
 
-vi.mock('../../api/axios', () => ({
+vi.mock('../../src/api/axios', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn()
   }
 }));
 
-import api from '../../api/axios';
+import api from '../../src/api/axios';
 
 const mockedApi = api as unknown as {
   get: Mock;

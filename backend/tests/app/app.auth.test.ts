@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../app';
-import { AuthService, User } from '../services/authService';
-import { CalibreService } from '../services/calibreService';
+import { createApp } from '../../src/app';
+import { AuthService, User } from '../../src/services/authService';
+import { CalibreService } from '../../src/services/calibreService';
 
 const approvedUser: User = {
   id: 1,

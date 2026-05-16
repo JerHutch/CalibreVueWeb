@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestLogger } from '../loggingMiddleware';
-import logger from '../../utils/logger';
+import { requestLogger } from '../../src/middleware/loggingMiddleware';
+import logger from '../../src/utils/logger';
 
 describe('requestLogger', () => {
   const next = vi.fn();

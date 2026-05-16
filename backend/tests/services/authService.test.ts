@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthService } from '../authService';
+import { AuthService } from '../../src/services/authService';
 
 // Mock better-sqlite3
 vi.mock('better-sqlite3', () => {
