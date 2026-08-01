@@ -44,9 +44,13 @@ router.onError((error) => {
   console.error('Router error:', error);
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  
+
+  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+    await authStore.ensureAuthInitialized();
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' });
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
@@ -56,4 +60,4 @@ router.beforeEach((to, from, next) => {
   }
 });
 
-export default router; 
+export default router;

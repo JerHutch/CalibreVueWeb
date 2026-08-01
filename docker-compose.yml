@@ -4,15 +4,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    working_dir: /app
-    command: npm run dev -- --host 0.0.0.0
     ports:
-      - "8888:8888"
-    environment:
-      - NODE_ENV=development
+      - "${FRONTEND_PORT:-8888}:80"
     depends_on:
       - backend
     networks:
@@ -24,15 +17,20 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
-      - ${CALIBRE_DB_PATH}:/usr/src/app/data
-    working_dir: /usr/src/app
-    command: npm run dev
+      - ${CALIBRE_DB_PATH}:/usr/src/app/data/calibre:ro
+      - app_data:/usr/src/app/data/app
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - APP_DB_PATH=${APP_DB_PATH:-/usr/src/app/data/app/app.db}
+      - CALIBRE_DB_DIR=/usr/src/app/data/calibre
+      - CALIBRE_DB_NAME=${CALIBRE_DB_NAME:-metadata.db}
     networks:
       - calibre-network
 
@@ -41,7 +39,4 @@ networks:
     driver: bridge
 
 volumes:
-  node_modules_frontend:
-  node_modules_backend:
-
-
+  app_data:

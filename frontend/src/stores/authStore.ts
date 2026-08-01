@@ -15,13 +15,11 @@ interface User {
   status: UserStatus;
 }
 
-const STORAGE_KEY = 'auth_user';
-
 export const useAuthStore = defineStore('auth', () => {
-  // Initialize state from localStorage
-  const savedUser = localStorage.getItem(STORAGE_KEY);
-  const user = ref<User | null>(savedUser ? JSON.parse(savedUser) : null);
+  const user = ref<User | null>(null);
   const error = ref<string | null>(null);
+  const isAuthInitialized = ref(false);
+  let authInitializationPromise: Promise<void> | null = null;
 
   // Computed
   const isAuthenticated = computed(() => !!user.value && user.value.status === 'approved');
@@ -40,14 +38,15 @@ export const useAuthStore = defineStore('auth', () => {
 
       console.log('login response', response.data);
       
-      const { user: userData, token } = response.data;
-      
-      // Save token and user data to localStorage
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-      
-      // Set user data
+      const userData = response.data.user ?? null;
+
+      if (!userData) {
+        reset();
+        return response.data;
+      }
+
       user.value = userData;
+      isAuthInitialized.value = true;
       return response.data;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Login failed';
@@ -59,13 +58,33 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       error.value = null;
       const response = await api.get('/auth/me');
-      const userData = response.data;
+      const userData = response.data.user ?? null;
+
+      if (!userData) {
+        reset();
+        return;
+      }
+
       user.value = userData;
-      // Update localStorage with fresh user data
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
     } catch (err) {
       reset();
+    } finally {
+      isAuthInitialized.value = true;
     }
+  }
+
+  async function ensureAuthInitialized() {
+    if (isAuthInitialized.value) {
+      return;
+    }
+
+    if (!authInitializationPromise) {
+      authInitializationPromise = checkAuth().finally(() => {
+        authInitializationPromise = null;
+      });
+    }
+
+    await authInitializationPromise;
   }
 
   async function logout() {
@@ -81,14 +100,13 @@ export const useAuthStore = defineStore('auth', () => {
   function reset() {
     user.value = null;
     error.value = null;
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem(STORAGE_KEY);
   }
 
   return {
     // State
     user,
     error,
+    isAuthInitialized,
     // Computed
     isAuthenticated,
     isAdmin,
@@ -97,7 +115,8 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     login,
     checkAuth,
+    ensureAuthInitialized,
     logout,
     reset
   };
-}); 
+});

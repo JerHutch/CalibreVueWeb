@@ -1,32 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/authService';
+import { User } from '../services/authService';
 import logger from '../utils/logger';
 
-let authService: AuthService;
+export const authenticateSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
+      return next();
+    }
 
-export const initializeMiddleware = (service: AuthService) => {
-  authService = service;
+    return res.status(401).json({ error: 'Authentication required' });
+  } catch (error) {
+    logger.error(`Authentication error: ${error}`);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Check for session-based auth first (Passport)
-    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
+      const user = req.user as User;
+
+      if (user.status !== 'approved') {
+        return res.status(403).json({ error: 'Account is not approved', status: user.status });
+      }
+
       return next();
     }
- 
+
+    return res.status(401).json({ error: 'Authentication required' });
   } catch (error) {
     logger.error(`Authentication error: ${error}`);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
-
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-      isAuthenticated?(): boolean;
-    }
-  }
-} 

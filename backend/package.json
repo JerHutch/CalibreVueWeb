@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Backend for Calibre Web Interface",
   "scripts": {
-    "start": "NODE_ENV=production ts-node src/index.ts",
+    "start": "node dist/index.js",
     "dev": "NODE_ENV=development nodemon --exec ts-node src/index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest"
   },
   "dependencies": {
@@ -17,7 +17,6 @@
     "dotenv": "^16.5.0",
     "express": "^4.18.2",
     "express-session": "^1.18.1",
-    "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0"
   },
@@ -28,7 +27,6 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.1",
-    "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.11.0",
     "@types/passport": "^1.0.17",
     "@types/supertest": "^6.0.3",

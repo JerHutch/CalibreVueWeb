@@ -1,0 +1,9 @@
+node_modules
+dist
+logs
+*.db
+*.sqlite
+.development.env
+.prod.env
+.env
+npm-debug.log*

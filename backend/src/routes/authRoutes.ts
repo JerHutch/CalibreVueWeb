@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import { logout, getCurrentUser } from '../controllers/authController';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateSession, authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
-
-// Protected routes
-router.use(authenticateToken);
-
-// Logout route
-router.post('/logout', logout);
 
 // Get current user route
 router.get('/me', getCurrentUser);
 
-export default router; 
+// Logout route
+router.post('/logout', authenticateSession, logout);
+
+// Protected routes
+router.use(authenticateToken);
+
+export default router;

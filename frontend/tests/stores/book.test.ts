@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useBookStore } from '../bookStore';
+import { useBookStore } from '../../src/stores/bookStore';
 import { faker } from '@faker-js/faker';
 
 // Mock the api module
-vi.mock('../../api/axios', () => ({
+vi.mock('../../src/api/axios', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../api/axios', () => ({
 }));
 
 // Mock the useFileDownload composable
-vi.mock('../../composables/useFileDownload', () => ({
+vi.mock('../../src/composables/useFileDownload', () => ({
   useFileDownload: vi.fn(() => ({
     downloadFile: vi.fn(),
     isDownloading: { value: false },
@@ -24,8 +24,8 @@ vi.mock('../../composables/useFileDownload', () => ({
 }));
 
 // Import the mocked api
-import api from '../../api/axios';
-import { useFileDownload } from '../../composables/useFileDownload';
+import api from '../../src/api/axios';
+import { useFileDownload } from '../../src/composables/useFileDownload';
 const mockedApi = api as unknown as {
   get: Mock;
 };

@@ -13,9 +13,9 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 let authService: AuthService;
 
-export function initializeController(authService: AuthService) {
-    logger.info('Initializing Google Auth Controller...');
-    
+export function initializePassportSession(authService: AuthService) {
+    logger.info('Initializing passport session support...');
+
     // Configure passport serialization
     passport.serializeUser((user: any, done) => {
         logger.info(`Serializing user with ID: ${user.id}`);
@@ -33,7 +33,9 @@ export function initializeController(authService: AuthService) {
             done(error, null);
         }
     });
+}
 
+export function initializeGoogleStrategy(authService: AuthService) {
     logger.info('Setting up Google Strategy...');
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
@@ -48,11 +50,17 @@ export function initializeController(authService: AuthService) {
             if (user) {
                 if (user.status === 'pending') {
                     logger.info(`User ${user.email} attempted to login but account is pending approval`);
-                    return done(null, false, { message: 'Your account is pending approval by an administrator.' });
+                    return done(null, false, {
+                        status: 'pending',
+                        message: 'Your account is pending approval by an administrator.'
+                    });
                 }
                 if (user.status === 'denied') {
                     logger.info(`User ${user.email} attempted to login but account is denied`);
-                    return done(null, false, { message: 'Your account has been denied access.' });
+                    return done(null, false, {
+                        status: 'denied',
+                        message: 'Your account has been denied access.'
+                    });
                 }
                 logger.info(`Successfully authenticated user: ${user.email}`);
                 done(null, user);
@@ -64,24 +72,56 @@ export function initializeController(authService: AuthService) {
     ));
 }
 
+export function initializeController(authService: AuthService) {
+    initializePassportSession(authService);
+    initializeGoogleStrategy(authService);
+}
+
 export function authenticateGoogle() {
     logger.info('Initiating Google authentication...');
-    return passport.authenticate('google', { scope: ['profile', 'email'] });
+    return passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        state: true
+    } as any);
 }
 
 export function handleGoogleCallback() {
-    var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const callbackUrl = `${baseUrl}/auth/google/callback`;
+    const errorRedirectUrl = `${callbackUrl}?status=error`;
     logger.info('Handling Google OAuth callback... baseUrl ' + baseUrl);
-    return passport.authenticate('google', {
-        failureRedirect: `${baseUrl}/auth/google/callback`,
-        failureMessage: true
-    });
+
+    return (req: Request, res: Response, next: any) => {
+        passport.authenticate('google', {}, (error: unknown, user: Express.User | false, info?: { status?: string }) => {
+            if (error) {
+                logger.error(`Google OAuth callback error: ${error}`);
+                return res.redirect(errorRedirectUrl);
+            }
+
+            if (!user) {
+                const status = info?.status === 'pending' || info?.status === 'denied'
+                    ? info.status
+                    : undefined;
+                const redirectUrl = status ? `${callbackUrl}?status=${status}` : callbackUrl;
+                return res.redirect(redirectUrl);
+            }
+
+            req.logIn(user, (loginError) => {
+                if (loginError) {
+                    logger.error(`Google OAuth session creation failed: ${loginError}`);
+                    return res.redirect(errorRedirectUrl);
+                }
+
+                return next();
+            });
+        })(req, res, next);
+    };
 }
 
 export function redirectAfterAuth(req: Request, res: Response) {
     logger.info('Redirecting after successful authentication...');
     var baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    var redirectUrl = `${baseUrl}/auth/google/callback`;
+    var redirectUrl = `${baseUrl}/auth/google/callback?status=approved`;
     logger.info(`Redirecting to: ${redirectUrl}`);
     res.redirect(redirectUrl);
 }

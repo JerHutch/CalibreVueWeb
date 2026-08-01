@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CalibreService, Book } from '../calibreService';
+import { CalibreService, Book } from '../../src/services/calibreService';
 import path from 'path';
 
 // Mock better-sqlite3

@@ -1,24 +1,21 @@
-# Use official Node.js image
-FROM node:18-alpine
-
-
+FROM node:22-alpine AS deps
 WORKDIR /usr/src/app
-
-# Copy package.json & package-lock.json
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy all source code
+FROM node:22-alpine AS build
+WORKDIR /usr/src/app
+COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY . .
+RUN npm run build
+RUN npm prune --omit=dev
 
-# If you use environment variables, copy .env
-# (Optional) Uncomment if you have a .env in backend
-COPY .development.env .development.env
-
-# Expose whichever port your app listens on, e.g., 3000
+FROM node:22-alpine AS runtime
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+COPY --from=build --chown=node:node /usr/src/app/package*.json ./
+COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=build --chown=node:node /usr/src/app/dist ./dist
+USER node
 EXPOSE 3000
-
-# Default command to run your Node.js server
 CMD ["npm", "start"]
