@@ -4,11 +4,10 @@
   "description": "Frontend for Calibre Web Interface",
   "type": "module",
   "scripts": {
-    "prestart": "npm install",
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "node ./node_modules/vitest/vitest.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.8",

@@ -12,6 +12,10 @@ The Compose stack starts two containers:
 The frontend publishes port `${FRONTEND_PORT:-8888}` on container port `80`.
 The backend publishes port `${BACKEND_PORT:-3000}` on container port `3000`.
 
+The image build uses Bun 1.3.14 and the committed root `bun.lock` for reproducible
+dependency installation. The backend runtime deliberately remains Node.js 22 because
+it uses the native `better-sqlite3` addon to access the Calibre and app databases.
+
 ## Prerequisites
 
 - Docker with Compose support
@@ -61,14 +65,22 @@ APP_DB_PATH=/usr/src/app/data/app/app.db
 
 ## Volumes And Persistence
 
-The backend uses two storage locations:
+The backend uses three storage locations:
 
 - Read-only Calibre mount:
   - host: `${CALIBRE_DB_PATH}`
   - container: `/usr/src/app/data/calibre`
-- Persistent app data volume:
-  - Compose volume: `app_data`
+- Persistent app data directory:
+  - host: `./app_data`
   - container path: `/usr/src/app/data/app`
+- Backend log files:
+  - host: `./app_data/logs`
+  - container path: `/usr/src/app/logs`
+  - `app_data/logs/app.log` persists across container recreation and is ignored by Git.
+
+The tracked `app_data/.gitkeep` creates the host data directory for local checkouts.
+At startup, the backend container ensures both writable directories are owned by the
+unprivileged `node` user before starting the application.
 
 The backend constructs the Calibre database file path from:
 
@@ -162,4 +174,4 @@ The full setup steps are in [Google OAuth Setup](google-oauth.md).
 
 ### App data is lost after recreating containers
 
-Do not replace the `app_data` volume with a temporary bind mount unless you intend to manage persistence yourself. The default Compose volume is what keeps the app database across container restarts.
+Do not delete `./app_data` unless you intend to reset the app database and file logs.
