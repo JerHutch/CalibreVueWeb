@@ -20,7 +20,8 @@ A web interface for browsing and downloading books from a local Calibre library.
 ## Architecture
 
 - Frontend: Vue 3, Vite, TypeScript, Pinia
-- Backend: Node.js, Express, TypeScript
+- Tooling: Bun 1.3.14 for dependency management, scripts, and builds
+- Backend: Node.js 22 runtime, Express, TypeScript
 - Authentication: Google OAuth with server-side sessions
 - Data: direct read access to Calibre's `metadata.db` plus a separate app database for user state
 - Testing: Vitest in both frontend and backend
@@ -28,15 +29,21 @@ A web interface for browsing and downloading books from a local Calibre library.
 
 ## Testing
 
+Install Bun 1.3.14, then install the workspace dependencies:
+
+```bash
+bun install
+```
+
 ```bash
 # Run all tests
-npm test -- --run
+bun run test -- --run
 
 # Run backend tests only
-cd backend && npm test -- --run
+cd backend && bun run test -- --run
 
 # Run frontend tests only
-cd frontend && npm test -- --run
+cd frontend && bun run test -- --run
 ```
 
 ## Project Structure

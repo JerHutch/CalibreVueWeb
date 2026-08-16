@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "Web interface for Calibre eBook library",
   "scripts": {
-    "setup": "concurrently \"cd backend && npm install\" \"cd frontend && npm install\"",
-    "start": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "backend": "cd backend && npm run dev",
-    "frontend": "cd frontend && npm run dev",
-    "build": "concurrently \"cd backend && npm run build\" \"cd frontend && npm run build\"",
-    "test": "concurrently \"cd backend && npm test\" \"cd frontend && npm test\""
+    "setup": "bun install",
+    "start": "concurrently \"bun run backend\" \"bun run frontend\"",
+    "backend": "cd backend && bun run dev",
+    "frontend": "cd frontend && bun run dev",
+    "build": "concurrently \"cd backend && bun run build\" \"cd frontend && bun run build\"",
+    "test": "concurrently \"cd backend && bun run test\" \"cd frontend && bun run test\""
   },
   "devDependencies": {
     "@faker-js/faker": "^9.7.0",
@@ -26,5 +26,9 @@
   "overrides": {
     "@types/express": "4.17.21",
     "@types/express-serve-static-core": "4.19.6"
-  }
+  },
+  "trustedDependencies": [
+    "better-sqlite3",
+    "esbuild"
+  ]
 }

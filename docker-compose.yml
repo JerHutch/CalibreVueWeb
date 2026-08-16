@@ -2,8 +2,8 @@ services:
   frontend:
     container_name: calibre-frontend
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "${FRONTEND_PORT:-8888}:80"
     depends_on:
@@ -14,8 +14,8 @@ services:
   backend:
     container_name: calibre-backend
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     volumes:
       - ${CALIBRE_DB_PATH}:/usr/src/app/data/calibre:ro
       - app_data:/usr/src/app/data/app

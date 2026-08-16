@@ -12,6 +12,10 @@ The Compose stack starts two containers:
 The frontend publishes port `${FRONTEND_PORT:-8888}` on container port `80`.
 The backend publishes port `${BACKEND_PORT:-3000}` on container port `3000`.
 
+The image build uses Bun 1.3.14 and the committed root `bun.lock` for reproducible
+dependency installation. The backend runtime deliberately remains Node.js 22 because
+it uses the native `better-sqlite3` addon to access the Calibre and app databases.
+
 ## Prerequisites
 
 - Docker with Compose support

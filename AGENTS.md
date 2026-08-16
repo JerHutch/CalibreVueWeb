@@ -6,11 +6,11 @@ This workspace contains a Vue 3 frontend and an Express backend. Frontend applic
 
 ## Build, Test, and Development Commands
 
-- `npm run setup` installs both workspace packages.
-- `npm start` runs the frontend and backend concurrently for local development.
-- `npm run build` type-checks/builds both packages; use it before submitting changes.
-- `npm test -- --run` runs both Vitest suites once (preferred for CI-style verification).
-- `cd frontend && npm run dev` starts Vite; `cd backend && npm run dev` starts the TypeScript Express server with Nodemon.
+- `bun run setup` installs both workspace packages.
+- `bun run start` runs the frontend and backend concurrently for local development.
+- `bun run build` type-checks/builds both packages; use it before submitting changes.
+- `bun run test -- --run` runs both Vitest suites once (preferred for CI-style verification).
+- `cd frontend && bun run dev` starts Vite; `cd backend && bun run dev` starts the TypeScript Express server with Nodemon.
 - `docker compose up --build` builds and starts the deployed container configuration. Consult `docs/docker.md` for required environment and library mounts.
 
 ## Coding Style & Naming Conventions

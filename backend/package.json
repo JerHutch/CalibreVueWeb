@@ -6,7 +6,7 @@
     "start": "node dist/index.js",
     "dev": "NODE_ENV=development nodemon --exec ts-node src/index.ts",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest"
+    "test": "node ./node_modules/vitest/vitest.mjs"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
