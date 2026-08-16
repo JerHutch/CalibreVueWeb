@@ -17,6 +17,7 @@ export interface Book {
   series: string | null;
   language: string | null;
   format: string | null;
+  file_name: string | null;
 }
 
 interface CountResult {
@@ -76,12 +77,28 @@ export class CalibreService {
          JOIN publishers p ON p.id = bpl.publisher 
          WHERE bpl.book = b.id) as publisher,
         b.pubdate,
-        b.isbn,
+        (SELECT i.val FROM identifiers i
+         WHERE i.book = b.id AND i.type = 'isbn'
+         LIMIT 1) as isbn,
         b.path,
         b.has_cover,
         b.timestamp,
         b.last_modified,
-        (SELECT format FROM data WHERE book = b.id LIMIT 1) as format
+        b.series_index,
+        (SELECT s.name FROM books_series_link bsl
+         JOIN series s ON s.id = bsl.series
+         WHERE bsl.book = b.id) as series,
+        (SELECT GROUP_CONCAT(l.lang_code, ', ') FROM books_languages_link bll
+         JOIN languages l ON l.id = bll.lang_code
+         WHERE bll.book = b.id) as language,
+        (SELECT d.format FROM data d
+         WHERE d.book = b.id
+         ORDER BY d.format COLLATE NOCASE
+         LIMIT 1) as format,
+        (SELECT d.name FROM data d
+         WHERE d.book = b.id
+         ORDER BY d.format COLLATE NOCASE
+         LIMIT 1) as file_name
       FROM books b
       ${whereClause}
       ORDER BY b.timestamp DESC
@@ -109,12 +126,28 @@ export class CalibreService {
          JOIN publishers p ON p.id = bpl.publisher 
          WHERE bpl.book = b.id) as publisher,
         b.pubdate,
-        b.isbn,
+        (SELECT i.val FROM identifiers i
+         WHERE i.book = b.id AND i.type = 'isbn'
+         LIMIT 1) as isbn,
         b.path,
         b.has_cover,
         b.timestamp,
         b.last_modified,
-        (SELECT format FROM data WHERE book = b.id LIMIT 1) as format
+        b.series_index,
+        (SELECT s.name FROM books_series_link bsl
+         JOIN series s ON s.id = bsl.series
+         WHERE bsl.book = b.id) as series,
+        (SELECT GROUP_CONCAT(l.lang_code, ', ') FROM books_languages_link bll
+         JOIN languages l ON l.id = bll.lang_code
+         WHERE bll.book = b.id) as language,
+        (SELECT d.format FROM data d
+         WHERE d.book = b.id
+         ORDER BY d.format COLLATE NOCASE
+         LIMIT 1) as format,
+        (SELECT d.name FROM data d
+         WHERE d.book = b.id
+         ORDER BY d.format COLLATE NOCASE
+         LIMIT 1) as file_name
       FROM books b
       WHERE b.id = ?
     `;
@@ -136,6 +169,7 @@ export class CalibreService {
       return null;
     }
     const author = book.author.split('| ').map(name => name.trim()).join(', ');
-    return path.join(this.basePath, book.path, `${book.title} - ${author}.${book.format}`);
+    const fileName = book.file_name || `${book.title} - ${author}`;
+    return path.join(this.basePath, book.path, `${fileName}.${book.format.toLowerCase()}`);
   }
-} 
+}

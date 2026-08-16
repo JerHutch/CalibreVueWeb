@@ -30,9 +30,17 @@ export function createApp(
   options: CreateAppOptions = {}
 ) {
   const app = express();
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const useSecureCookies = frontendUrl.startsWith('https://');
+
+  // Production deployments can terminate TLS in a reverse proxy. Trust its
+  // forwarded protocol only when this app is configured for an HTTPS frontend.
+  if (useSecureCookies) {
+    app.set('trust proxy', 1);
+  }
 
   app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: frontendUrl,
     credentials: true
   }));
   app.use(express.json());
@@ -42,7 +50,7 @@ export function createApp(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecureCookies,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000
     }
