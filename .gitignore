@@ -58,3 +58,7 @@ docker-compose.override.yml
 # Backend logs
 backend/logs/*
 !backend/logs/.gitkeep
+
+# Runtime application data and logs
+app_data/*
+!app_data/.gitkeep

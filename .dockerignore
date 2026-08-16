@@ -15,4 +15,5 @@ coverage
 *.db-wal
 *.db-shm
 backend/logs
+app_data
 npm-debug.log*

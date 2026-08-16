@@ -18,7 +18,8 @@ services:
       dockerfile: backend/Dockerfile
     volumes:
       - ${CALIBRE_DB_PATH}:/usr/src/app/data/calibre:ro
-      - app_data:/usr/src/app/data/app
+      - ./app_data:/usr/src/app/data/app
+      - ./app_data/logs:/usr/src/app/logs
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
@@ -37,6 +38,3 @@ services:
 networks:
   calibre-network:
     driver: bridge
-
-volumes:
-  app_data:

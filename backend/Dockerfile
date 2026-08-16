@@ -22,6 +22,12 @@ COPY --from=build --chown=node:node /usr/src/app/backend/package.json ./backend/
 COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
 COPY --from=build --chown=node:node /usr/src/app/backend/node_modules ./backend/node_modules
 COPY --from=build --chown=node:node /usr/src/app/backend/dist ./backend/dist
-USER node
+COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN apk add --no-cache su-exec \
+  && mkdir -p /usr/src/app/data/app /usr/src/app/logs \
+  && chown -R node:node /usr/src/app/data/app /usr/src/app/logs \
+  && chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 3000
+USER root
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "backend/dist/index.js"]

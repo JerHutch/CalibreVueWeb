@@ -17,6 +17,10 @@ This workspace contains a Vue 3 frontend and an Express backend. Frontend applic
 
 Use TypeScript throughout and match nearby code: two-space indentation, semicolons, and single-quoted strings. Use PascalCase for Vue component files and exported classes (`BookCard.vue`, `CalibreService`); use camelCase for functions, stores, variables, and composables (`useFileDownload`). Keep Vue components in `<script setup lang="ts">` form when practical. Import frontend application modules through the `@/` alias. No lint or formatter script is configured, so avoid unrelated formatting churn and rely on TypeScript builds.
 
+## Environment Files
+
+Do not read `.env` files. `.env.example` is the only permitted exception.
+
 ## Testing Guidelines
 
 Both packages use Vitest; the frontend runs in jsdom and uses Vue Test Utils, while backend tests use Vitest/Supertest and mocks. Name test files `*.test.ts` and mirror the source area, e.g. `backend/tests/controllers/bookController.test.ts` or `frontend/tests/components/BookCard.test.ts`. Add focused tests for changed behavior, especially authentication, file access, and API error responses. Run the affected package suite during development and the root test command before a PR.

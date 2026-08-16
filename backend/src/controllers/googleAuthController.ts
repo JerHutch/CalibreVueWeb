@@ -40,7 +40,7 @@ export function initializeGoogleStrategy(authService: AuthService) {
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback'
+        callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/api/auth/google/callback`
     },
         async function(accessToken: string, refreshToken: string, profile: any, done: any) {
             logger.info(`Google OAuth callback received for profile: ${profile.emails?.[0]?.value}`);
