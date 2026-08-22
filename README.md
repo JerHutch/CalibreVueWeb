@@ -5,6 +5,7 @@ A web interface for browsing and downloading books from a local Calibre library.
 ## Guides
 
 - [Docker Deployment](docs/docker.md)
+- [Docker Hub Image Deployment](docs/docker-hub.md)
 - [Synology NAS Deployment](docs/synology-nas.md)
 - [Google OAuth Setup](docs/google-oauth.md)
 

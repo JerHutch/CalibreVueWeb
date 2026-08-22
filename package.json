@@ -1,6 +1,6 @@
 {
   "name": "calibre-web-app",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Web interface for Calibre eBook library",
   "scripts": {
     "setup": "bun install",
