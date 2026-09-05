@@ -1,0 +1,36 @@
+services:
+  frontend:
+    container_name: calibre-frontend
+    image: "${DOCKERHUB_USER:?Set DOCKERHUB_USER}/${DOCKERHUB_REPOSITORY:?Set DOCKERHUB_REPOSITORY}:${FRONTEND_IMAGE_NAME:-calibre-vue-frontend}-${IMAGE_TAG:?Set IMAGE_TAG}"
+    ports:
+      - "${FRONTEND_PORT:-8888}:80"
+    depends_on:
+      - backend
+    networks:
+      - calibre-network
+
+  backend:
+    container_name: calibre-backend
+    image: "${DOCKERHUB_USER:?Set DOCKERHUB_USER}/${DOCKERHUB_REPOSITORY:?Set DOCKERHUB_REPOSITORY}:${BACKEND_IMAGE_NAME:-calibre-vue-backend}-${IMAGE_TAG:?Set IMAGE_TAG}"
+    volumes:
+      - ${CALIBRE_DB_PATH}:/usr/src/app/data/calibre:ro
+      - ./app_data:/usr/src/app/data/app
+      - ./app_data/logs:/usr/src/app/logs
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - APP_DB_PATH=${APP_DB_PATH:-/usr/src/app/data/app/app.db}
+      - CALIBRE_DB_DIR=/usr/src/app/data/calibre
+      - CALIBRE_DB_NAME=${CALIBRE_DB_NAME:-metadata.db}
+    networks:
+      - calibre-network
+
+networks:
+  calibre-network:
+    driver: bridge
