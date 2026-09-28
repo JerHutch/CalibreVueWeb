@@ -130,7 +130,13 @@ if [[ -z "${IMAGE_TAG:-}" ]]; then
 fi
 frontend_tag="${FRONTEND_IMAGE_NAME}-${IMAGE_TAG}"
 backend_tag="${BACKEND_IMAGE_NAME}-${IMAGE_TAG}"
+frontend_latest_tag="${FRONTEND_IMAGE_NAME}-latest"
+backend_latest_tag="${BACKEND_IMAGE_NAME}-latest"
 export DOCKERHUB_REPOSITORY FRONTEND_IMAGE_NAME BACKEND_IMAGE_NAME IMAGE_TAG
+
+if [[ "$run_build" == true && "$IMAGE_TAG" == latest ]]; then
+  fail 'IMAGE_TAG=latest is for pull-only deployment hosts. Leave it blank or use an immutable tag when building.'
+fi
 
 command -v docker >/dev/null 2>&1 || fail 'docker is not installed or is not on PATH.'
 
@@ -187,6 +193,14 @@ if [[ "$run_build" == true ]]; then
     --tag "${image_repository}:${backend_tag}" \
     --push \
     "$project_root"
+
+  printf 'Updating latest aliases after both immutable images were pushed...\n'
+  docker buildx imagetools create \
+    --tag "${image_repository}:${frontend_latest_tag}" \
+    "${image_repository}:${frontend_tag}"
+  docker buildx imagetools create \
+    --tag "${image_repository}:${backend_latest_tag}" \
+    "${image_repository}:${backend_tag}"
 fi
 
 if [[ "$run_deploy" == true ]]; then
@@ -200,3 +214,8 @@ fi
 printf 'Release complete:\n  %s:%s\n  %s:%s\n' \
   "$image_repository" "$frontend_tag" \
   "$image_repository" "$backend_tag"
+if [[ "$run_build" == true ]]; then
+  printf 'Latest aliases:\n  %s:%s\n  %s:%s\n' \
+    "$image_repository" "$frontend_latest_tag" \
+    "$image_repository" "$backend_latest_tag"
+fi

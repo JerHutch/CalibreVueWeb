@@ -12,10 +12,12 @@ same private Docker Hub repository:
 ```text
 YOUR_DOCKERHUB_USER/YOUR_REPOSITORY:calibre-vue-frontend-a4c6e9912def
 YOUR_DOCKERHUB_USER/YOUR_REPOSITORY:calibre-vue-backend-a4c6e9912def
+YOUR_DOCKERHUB_USER/YOUR_REPOSITORY:calibre-vue-frontend-latest
+YOUR_DOCKERHUB_USER/YOUR_REPOSITORY:calibre-vue-backend-latest
 ```
 
-The tag after each image name is a Git commit SHA. Generate it from the
-checked-out source with:
+The immutable tags end with a Git commit SHA. Generate it from the checked-out
+source with:
 
 ```bash
 git rev-parse --short=12 HEAD
@@ -25,7 +27,9 @@ It is not a Docker-generated value and does not need to increase numerically.
 Docker tags may be any valid, unique string. A commit SHA is recommended
 because it permanently identifies the source revision used for the image and
 makes rollback straightforward. Build and deploy from a clean, committed tree
-so the tag accurately represents the image contents.
+so the tag accurately represents the image contents. After both immutable
+images are pushed successfully, the script moves the two `-latest` aliases to
+that release.
 
 ## Prerequisites
 
@@ -67,8 +71,10 @@ BUILDX_BUILDER=calibre-builder
 
 `DOCKERHUB_TOKEN` is optional when the current machine is already authenticated
 with `docker login`. Prefer a Docker Hub personal access token over an account
-password. `IMAGE_TAG` defaults to the current 12-character Git commit SHA; set
-it explicitly to publish or deploy another tag.
+password. On the build machine, `IMAGE_TAG` defaults to the current 12-character
+Git commit SHA; set it explicitly to publish another immutable tag. On a
+pull-only deployment host, set `IMAGE_TAG=latest` once to follow the stable
+aliases without editing the environment for every release.
 
 Build both images, push them, and deploy them on the current Docker host:
 
@@ -87,7 +93,7 @@ pulls published images and contains no `build` sections. Its modes are:
 
 Use `--build-only` on a workstation when the NAS is a separate host. Copy the
 deployment Compose file, script, and configured `.env` to the NAS, set
-`IMAGE_TAG` to the published tag, and run the script there with `--deploy-only`.
+`IMAGE_TAG=latest`, and run the script there with `--deploy-only`.
 Alternatively, select a remote Docker context before running the complete
 command; host paths such as `CALIBRE_DB_PATH` must then be valid on that remote
 Docker host.
