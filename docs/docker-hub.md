@@ -1,13 +1,13 @@
 # Docker Hub Image Deployment
 
 This guide explains how to build the frontend and backend images outside the
-NAS, publish them to one private Docker Hub repository, and deploy them on
+NAS, publish them to one public Docker Hub repository, and deploy them on
 Synology Container Manager with Compose.
 
 ## Repository And Tag Layout
 
 Use specific tag prefixes to distinguish both application images inside the
-same private Docker Hub repository:
+same public Docker Hub repository:
 
 ```text
 YOUR_DOCKERHUB_USER/YOUR_REPOSITORY:calibre-vue-frontend-a4c6e9912def
@@ -33,9 +33,9 @@ that release.
 
 ## Prerequisites
 
-- One private Docker Hub repository for both images.
+- One public Docker Hub repository for both images.
 - Docker with Buildx on the build machine.
-- Docker Hub credentials on the build machine and the NAS.
+- Docker Hub credentials on the build machine. The NAS pulls anonymously.
 - The NAS CPU architecture. Over SSH, run:
 
   ```bash
@@ -60,7 +60,7 @@ At minimum, configure the Docker Hub settings and all application settings in
 
 ```env
 DOCKERHUB_USER=YOUR_DOCKERHUB_USER
-DOCKERHUB_REPOSITORY=YOUR_PRIVATE_REPOSITORY
+DOCKERHUB_REPOSITORY=YOUR_REPOSITORY
 FRONTEND_IMAGE_NAME=calibre-vue-frontend
 BACKEND_IMAGE_NAME=calibre-vue-backend
 DOCKERHUB_TOKEN=replace-with-a-docker-hub-access-token
@@ -69,8 +69,8 @@ DOCKER_PLATFORMS=linux/amd64
 BUILDX_BUILDER=calibre-builder
 ```
 
-`DOCKERHUB_TOKEN` is optional when the current machine is already authenticated
-with `docker login`. Prefer a Docker Hub personal access token over an account
+`DOCKERHUB_TOKEN` is only used when building and pushing, and is optional when
+the build machine is already authenticated with `docker login`. Prefer a Docker Hub personal access token over an account
 password. On the build machine, `IMAGE_TAG` defaults to the current 12-character
 Git commit SHA; set it explicitly to publish another immutable tag. On a
 pull-only deployment host, set `IMAGE_TAG=latest` once to follow the stable
@@ -151,7 +151,7 @@ file containing the normal deployment settings plus the image values:
 
 ```env
 DOCKERHUB_USER=YOUR_DOCKERHUB_USER
-DOCKERHUB_REPOSITORY=YOUR_PRIVATE_REPOSITORY
+DOCKERHUB_REPOSITORY=YOUR_REPOSITORY
 FRONTEND_IMAGE_NAME=calibre-vue-frontend
 BACKEND_IMAGE_NAME=calibre-vue-backend
 IMAGE_TAG=replace-with-12-character-commit-sha
@@ -172,11 +172,10 @@ for the required mounts and reverse-proxy/OAuth settings.
 
 ## Deploy And Update
 
-Log in to Docker Hub from the NAS once so it can pull the private images:
-
-```bash
-docker login
-```
+The repository is public, so the NAS does not need to log in to pull images.
+Leave `DOCKERHUB_TOKEN` out of the NAS `.env` file. Logging in with
+`docker login` is optional and only raises Docker Hub's anonymous pull rate
+limit.
 
 From the NAS project directory, either use the script:
 
@@ -202,8 +201,10 @@ container replacements.
 
 ### The NAS cannot pull the image
 
-- Confirm `docker login` on the NAS used the Docker Hub account that owns or
-  has access to the private repository.
+- Confirm the Docker Hub repository is public. If it was made private again,
+  run `docker login` on the NAS with an account that has access.
+- If the pull fails with `toomanyrequests`, the NAS hit Docker Hub's anonymous
+  rate limit; wait or run `docker login` on the NAS.
 - Confirm the image name and tag in `.env` exactly match the pushed tag.
 - Confirm the pushed image architecture matches the NAS.
 

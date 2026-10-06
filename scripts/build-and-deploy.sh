@@ -140,15 +140,18 @@ fi
 
 command -v docker >/dev/null 2>&1 || fail 'docker is not installed or is not on PATH.'
 
-if [[ -n "${DOCKERHUB_TOKEN:-}" ]]; then
-  printf 'Logging in to Docker Hub as %s...\n' "$DOCKERHUB_USER"
-  printf '%s' "$DOCKERHUB_TOKEN" | docker login \
-    --username "$DOCKERHUB_USER" \
-    --password-stdin
-  unset DOCKERHUB_TOKEN
-else
-  printf 'Using the existing Docker Hub login. Set DOCKERHUB_TOKEN in %s for non-interactive login.\n' "$env_file"
+# Pushing requires a login; pulling from the public repository does not.
+if [[ "$run_build" == true ]]; then
+  if [[ -n "${DOCKERHUB_TOKEN:-}" ]]; then
+    printf 'Logging in to Docker Hub as %s...\n' "$DOCKERHUB_USER"
+    printf '%s' "$DOCKERHUB_TOKEN" | docker login \
+      --username "$DOCKERHUB_USER" \
+      --password-stdin
+  else
+    printf 'Using the existing Docker Hub login. Set DOCKERHUB_TOKEN in %s for non-interactive login.\n' "$env_file"
+  fi
 fi
+unset DOCKERHUB_TOKEN
 
 if [[ "$run_build" == true ]]; then
   docker buildx version >/dev/null 2>&1 || fail 'Docker Buildx is not available.'
