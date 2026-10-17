@@ -22,14 +22,16 @@ vi.mock('fs', () => ({
   mkdirSync: vi.fn(),
   createWriteStream: vi.fn().mockReturnValue({
     write: vi.fn(),
-    end: vi.fn()
+    end: vi.fn(),
+    on: vi.fn()
   }),
   default: {
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
     createWriteStream: vi.fn().mockReturnValue({
       write: vi.fn(),
-      end: vi.fn()
+      end: vi.fn(),
+      on: vi.fn()
     })
   }
 }));

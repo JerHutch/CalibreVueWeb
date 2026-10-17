@@ -6,6 +6,7 @@ import { createApp } from './app';
 import logger from './utils/logger';
 import Database from 'better-sqlite3';
 import { initializeAppSchema } from './db/appSchema';
+import { describePath } from './utils/pathDiagnostics';
 
 // Load environment variables from .development.env
 const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.development.env';
@@ -14,6 +15,7 @@ dotenv.config({ path: envFile });
 logger.info(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 logger.info(`PORT: ${process.env.PORT || 3000}`);
 logger.info(`FRONTEND_URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+logger.info(`CALIBRE_DB_DIR: ${process.env.CALIBRE_DB_DIR || '/usr/src/app/data/calibre'}`);
 logger.info(`CALIBRE_DB_NAME: ${process.env.CALIBRE_DB_NAME || 'metadata.db'}`);
 logger.info(`APP_DB_PATH: ${process.env.APP_DB_PATH || '/usr/src/app/data/app/app.db'}`);
 
@@ -26,14 +28,14 @@ const calibreDbPath = path.join(calibreDbDir, calibreDbName);
 const appDbPath = process.env.APP_DB_PATH || '/usr/src/app/data/app/app.db';
 
 try {
-  console.log(`Attempting to connect to Calibre database at: ${calibreDbPath}`);
+  logger.info(`Attempting to connect to Calibre database at: ${calibreDbPath}`);
   const calibreDb = new Database(calibreDbPath, { fileMustExist: true });
-  console.log('Successfully connected to Calibre database');
+  logger.info('Successfully connected to Calibre database');
   
-  console.log(`Attempting to connect to application database at: ${appDbPath}`);
+  logger.info(`Attempting to connect to application database at: ${appDbPath}`);
   const appDb = new Database(appDbPath);
   initializeAppSchema(appDb);
-  console.log('Successfully connected to application database');
+  logger.info('Successfully connected to application database');
 
   const calibreService = new CalibreService(calibreDb, calibreDbPath);
   const authService = new AuthService(appDb);
@@ -43,6 +45,10 @@ try {
     logger.info(`Server is running on port ${port}`);
   });
 } catch (error) {
-  console.error('Failed to initialize databases:', error);
-  process.exit(1);
+  const detail = error instanceof Error ? error.stack || error.message : String(error);
+  logger.error(`Failed to initialize databases: ${detail}`);
+  [calibreDbPath, appDbPath].forEach((dbPath) => {
+    describePath(dbPath).forEach((line) => logger.error(`${dbPath} - ${line}`));
+  });
+  logger.flush().finally(() => process.exit(1));
 }

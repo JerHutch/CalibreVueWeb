@@ -3,6 +3,7 @@ import path from 'path';
 
 export interface LogDestination {
   log: (message: string) => void;
+  flush?: () => Promise<void>;
 }
 
 class ConsoleDestination implements LogDestination {
@@ -20,9 +21,22 @@ class FileDestination implements LogDestination {
       fs.mkdirSync(dir, { recursive: true });
     }
     this.stream = fs.createWriteStream(filePath, { flags: 'a' });
+    this.stream.on('error', (error) => {
+      // eslint-disable-next-line no-console
+      console.error(`ERROR: Unable to write log file ${filePath}: ${error.message}`);
+    });
   }
   log(message: string) {
     this.stream.write(message + '\n');
+  }
+  flush(): Promise<void> {
+    if (this.stream.destroyed) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      this.stream.once('close', resolve);
+      this.stream.end();
+    });
   }
 }
 
@@ -42,6 +56,9 @@ export class Logger {
   }
   error(message: string) {
     this.log(`ERROR: ${message}`);
+  }
+  async flush() {
+    await Promise.all(this.destinations.map(dest => dest.flush?.()));
   }
 }
 
