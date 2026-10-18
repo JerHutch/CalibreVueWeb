@@ -256,7 +256,12 @@ describe('clientLogger', () => {
 
     it('keeps the buffer at 100 entries (oldest dropped) with a dead backend', async () => {
       fetchMock.mockImplementation(() => Promise.reject(new Error('down')));
-      for (let i = 0; i < 150; i += 1) clientLog('info', 'a.b', `m${i}`);
+      // Three bursts a minute apart stay under the 60-per-minute cap. Only the
+      // clock moves between them, so no timer (and no send) runs in between.
+      for (let i = 0; i < 150; i += 1) {
+        if (i > 0 && i % 50 === 0) vi.setSystemTime(Date.now() + 61000);
+        clientLog('info', 'a.b', `m${i}`);
+      }
       await vi.advanceTimersByTimeAsync(120000);
       const sent = new Set(sentEntries().map((e) => e.message));
       // m0-m19 were taken by the first immediate flush; m20-m49 overflowed.
@@ -302,6 +307,104 @@ describe('clientLogger', () => {
       await flushClientLogs();
       expect(sentEntries()).toHaveLength(1);
       expect(sentEntries()[0].details).toEqual({ good: 'kept' });
+    });
+  });
+
+  describe('flood control', () => {
+    const messages = () => sentEntries().map((e) => e.message);
+
+    it('drops an identical entry within 5 seconds', async () => {
+      clientLog('error', 'window.error', 'same');
+      await vi.advanceTimersByTimeAsync(1000);
+      clientLog('error', 'window.error', 'same');
+      await vi.advanceTimersByTimeAsync(3999);
+      clientLog('error', 'window.error', 'same');
+      await flushClientLogs();
+      expect(messages()).toEqual(['same']);
+    });
+
+    it('keeps an identical entry once 5 seconds have passed', async () => {
+      clientLog('error', 'window.error', 'same');
+      await vi.advanceTimersByTimeAsync(5000);
+      clientLog('error', 'window.error', 'same');
+      await flushClientLogs();
+      expect(messages()).toEqual(['same', 'same']);
+    });
+
+    it('keeps entries whose message or event differs', async () => {
+      clientLog('error', 'window.error', 'one');
+      clientLog('error', 'window.error', 'two');
+      clientLog('error', 'vue.error', 'one');
+      await flushClientLogs();
+      expect(sentEntries().map((e) => `${e.event}:${e.message}`)).toEqual([
+        'window.error:one',
+        'window.error:two',
+        'vue.error:one'
+      ]);
+    });
+
+    it('accepts at most 60 entries per minute and then reports the dropped count once', async () => {
+      for (let i = 0; i < 70; i += 1) clientLog('info', 'a.b', `m${i}`);
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(messages()).toEqual(Array.from({ length: 60 }, (_, i) => `m${i}`));
+
+      await vi.advanceTimersByTimeAsync(60000);
+      const summaries = sentEntries().filter((e) => e.event === 'client.log.dropped');
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0]).toMatchObject({ level: 'warn', details: { dropped: 10 } });
+
+      clientLog('info', 'a.b', 'after');
+      await flushClientLogs();
+      expect(messages()).toContain('after');
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(sentEntries().filter((e) => e.event === 'client.log.dropped')).toHaveLength(1);
+    });
+
+    it('frees cap slots as the rolling minute moves on', async () => {
+      for (let i = 0; i < 60; i += 1) clientLog('info', 'a.b', `early${i}`);
+      await vi.advanceTimersByTimeAsync(30000);
+      clientLog('info', 'a.b', 'blocked');
+      await vi.advanceTimersByTimeAsync(30000);
+      clientLog('info', 'a.b', 'freed');
+      await flushClientLogs();
+      expect(messages()).not.toContain('blocked');
+      expect(messages()).toContain('freed');
+    });
+
+    it('sends the summary even when the cap is full again', async () => {
+      for (let i = 0; i < 60; i += 1) clientLog('info', 'a.b', `first${i}`);
+      await vi.advanceTimersByTimeAsync(59000);
+      clientLog('info', 'a.b', 'dropped');
+      await vi.advanceTimersByTimeAsync(59000);
+      // The cap is full again when the summary is due one minute after the drop.
+      for (let i = 0; i < 60; i += 1) clientLog('info', 'a.b', `second${i}`);
+      await vi.advanceTimersByTimeAsync(1000);
+      clientLog('info', 'a.b', 'dropped too');
+      await flushClientLogs();
+      await vi.advanceTimersByTimeAsync(10000);
+      const summaries = sentEntries().filter((e) => e.event === 'client.log.dropped');
+      expect(summaries.length).toBeGreaterThanOrEqual(1);
+      expect(summaries[0].details).toEqual({ dropped: 1 });
+      expect(messages()).not.toContain('dropped');
+      expect(messages()).not.toContain('dropped too');
+    });
+
+    it('starts no timer when nothing is dropped', () => {
+      const base = vi.getTimerCount();
+      for (let i = 0; i < 10; i += 1) clientLog('info', 'a.b', `m${i}`);
+      expect(vi.getTimerCount()).toBe(base + 1);
+    });
+
+    it('forgets dedupe and cap state on resetClientLogger', async () => {
+      for (let i = 0; i < 61; i += 1) clientLog('info', 'a.b', `m${i}`);
+      clientLog('info', 'a.b', 'm0');
+      resetClientLogger();
+      clientLog('info', 'a.b', 'm0');
+      await flushClientLogs();
+      const last = bodies()[bodies().length - 1].entries;
+      expect(last.map((e: { message: string }) => e.message)).toEqual(['m0']);
+      await vi.advanceTimersByTimeAsync(120000);
+      expect(sentEntries().filter((e) => e.event === 'client.log.dropped')).toHaveLength(0);
     });
   });
 

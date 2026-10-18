@@ -26,8 +26,18 @@ const MAX_MESSAGE_LENGTH = 1000;
 const MAX_DETAIL_VALUE_LENGTH = 200;
 const MAX_DETAIL_KEYS = 20;
 const LEVELS: ClientLogLevel[] = ['info', 'warn', 'error'];
+const DEDUPE_WINDOW_MS = 5000;
+const MAX_DEDUPE_KEYS = 100;
+const RATE_WINDOW_MS = 60000;
+const MAX_PER_WINDOW = 60;
 
 let queue: ClientLogEntry[] = [];
+// Flood control: last accept time per event + message, accept times within
+// the rolling minute, and entries dropped over the cap since the last summary.
+let recentKeys = new Map<string, number>();
+let acceptedTimes: number[] = [];
+let droppedCount = 0;
+let dropTimer: ReturnType<typeof setTimeout> | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let current: Promise<void> | null = null;
 let windowHandlersInstalled = false;
@@ -263,6 +273,74 @@ export function flushClientLogs(
   }
 }
 
+function enqueue(entry: ClientLogEntry): void {
+  queue.push(entry);
+  while (queue.length > MAX_BUFFER) {
+    queue.shift();
+  }
+  if (queue.length >= MAX_ENTRIES_PER_REQUEST) {
+    void flushClientLogs();
+  } else {
+    scheduleFlush();
+  }
+}
+
+// Times from the future (the clock went back) count as expired.
+function expired(time: number, now: number, windowMs: number): boolean {
+  return now - time >= windowMs || now < time;
+}
+
+function reportDropped(): void {
+  try {
+    dropTimer = null;
+    const dropped = droppedCount;
+    droppedCount = 0;
+    if (dropped > 0) {
+      // Bypasses dedupe and the cap so the summary always lands.
+      enqueue({
+        ts: new Date().toISOString(),
+        level: 'warn',
+        event: 'client.log.dropped',
+        message: `Dropped ${dropped} browser log entries over the rate limit`,
+        details: { dropped }
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Dedupe within 5 s, then at most 60 accepted entries per rolling minute. */
+function admit(event: string, message: string): boolean {
+  const now = Date.now();
+  for (const [key, time] of recentKeys) {
+    if (!expired(time, now, DEDUPE_WINDOW_MS) && recentKeys.size <= MAX_DEDUPE_KEYS) {
+      break;
+    }
+    recentKeys.delete(key);
+  }
+  const key = `${event}\n${message}`;
+  const last = recentKeys.get(key);
+  if (last !== undefined && !expired(last, now, DEDUPE_WINDOW_MS)) {
+    return false;
+  }
+  while (acceptedTimes.length > 0 && expired(acceptedTimes[0], now, RATE_WINDOW_MS)) {
+    acceptedTimes.shift();
+  }
+  if (acceptedTimes.length >= MAX_PER_WINDOW) {
+    droppedCount += 1;
+    if (dropTimer === null) {
+      dropTimer = setTimeout(reportDropped, RATE_WINDOW_MS);
+    }
+    return false;
+  }
+  acceptedTimes.push(now);
+  // Re-insert so the map stays in accept-time order for the prune above.
+  recentKeys.delete(key);
+  recentKeys.set(key, now);
+  return true;
+}
+
 export function clientLog(
   level: ClientLogLevel,
   event: string,
@@ -270,21 +348,18 @@ export function clientLog(
   details?: ClientLogDetails
 ): void {
   try {
-    queue.push({
+    const cleanEvent = sanitizeEvent(event);
+    const cleanMessage = String(message ?? '').slice(0, MAX_MESSAGE_LENGTH);
+    if (!admit(cleanEvent, cleanMessage)) {
+      return;
+    }
+    enqueue({
       ts: new Date().toISOString(),
       level: LEVELS.includes(level) ? level : 'info',
-      event: sanitizeEvent(event),
-      message: String(message ?? '').slice(0, MAX_MESSAGE_LENGTH),
+      event: cleanEvent,
+      message: cleanMessage,
       details: sanitizeDetails(details)
     });
-    while (queue.length > MAX_BUFFER) {
-      queue.shift();
-    }
-    if (queue.length >= MAX_ENTRIES_PER_REQUEST) {
-      void flushClientLogs();
-    } else {
-      scheduleFlush();
-    }
   } catch {
     // logging must never throw into callers
   }
@@ -424,6 +499,13 @@ export function resetClientLogger(): void {
       clearTimeout(timer);
     }
     timer = null;
+    if (dropTimer !== null) {
+      clearTimeout(dropTimer);
+    }
+    dropTimer = null;
+    droppedCount = 0;
+    recentKeys = new Map<string, number>();
+    acceptedTimes = [];
     queue = [];
     current = null;
     removeWindowHandlers?.();
