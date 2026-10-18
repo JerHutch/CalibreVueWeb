@@ -74,30 +74,94 @@ describe('RollingFileDestination', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('does not retry on the same day but retries on the next day after a failure', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const blocker = path.join(dir, 'blocker');
-    const logDir = path.join(blocker, 'logs');
-    fs.writeFileSync(blocker, 'x');
-    let now = new Date(2026, 9, 18, 9, 0, 0);
-    const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
-    expect(spy).toHaveBeenCalledTimes(1);
+  describe('after a failure', () => {
+    let blocker: string;
+    let logDir: string;
+    let spy: ReturnType<typeof vi.spyOn>;
+    const block = () => {
+      fs.rmSync(blocker, { recursive: true, force: true });
+      fs.writeFileSync(blocker, 'x');
+    };
+    const unblock = () => {
+      fs.rmSync(blocker, { recursive: true, force: true });
+      fs.mkdirSync(blocker);
+    };
 
-    // Problem removed, but still the same local day: no retry.
-    fs.rmSync(blocker);
-    fs.mkdirSync(blocker);
-    now = new Date(2026, 9, 18, 22, 0, 0);
-    dest.log('same day');
-    await dest.flush();
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(fs.existsSync(logDir)).toBe(false);
+    beforeEach(() => {
+      spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      blocker = path.join(dir, 'blocker');
+      logDir = path.join(blocker, 'logs');
+      block();
+    });
 
-    // Next local day: retries and succeeds.
-    now = new Date(2026, 9, 19, 0, 0, 5);
-    dest.log('next day');
-    await dest.flush();
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(fs.readFileSync(path.join(logDir, logFileName(now)), 'utf8')).toBe('next day\n');
+    it('does not retry within 60 seconds, then retries and writes later lines', async () => {
+      const start = new Date(2026, 9, 18, 9, 0, 0);
+      let now = start;
+      const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      unblock();
+      now = new Date(start.getTime() + 59999);
+      dest.log('cooldown');
+      await dest.flush();
+      expect(fs.existsSync(logDir)).toBe(false);
+
+      now = new Date(start.getTime() + 60000);
+      dest.log('retried');
+      dest.log('later');
+      await dest.flush();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(fs.readFileSync(path.join(logDir, logFileName(now)), 'utf8')).toBe('retried\nlater\n');
+    });
+
+    it('reports a second failure after recovery', async () => {
+      const start = new Date(2026, 9, 18, 9, 0, 0);
+      let now = start;
+      const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+      unblock();
+      now = new Date(start.getTime() + 61000);
+      dest.log('recovered');
+      await dest.flush();
+      expect(fs.readFileSync(path.join(logDir, logFileName(now)), 'utf8')).toBe('recovered\n');
+
+      block();
+      now = new Date(start.getTime() + 62000);
+      expect(() => dest.log('fails again')).not.toThrow();
+      await dest.flush();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports at most once per cooldown period while the problem persists', async () => {
+      const start = new Date(2026, 9, 18, 9, 0, 0);
+      let now = start;
+      const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+      for (const offset of [1000, 30000, 59000]) {
+        now = new Date(start.getTime() + offset);
+        dest.log('x');
+      }
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      now = new Date(start.getTime() + 61000);
+      dest.log('retry fails');
+      expect(spy).toHaveBeenCalledTimes(2);
+      now = new Date(start.getTime() + 90000);
+      dest.log('cooldown again');
+      await dest.flush();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('still retries on the next local day, even within the cooldown', async () => {
+      let now = new Date(2026, 9, 18, 23, 59, 50);
+      const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      unblock();
+      now = new Date(2026, 9, 19, 0, 0, 5);
+      dest.log('next day');
+      await dest.flush();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(fs.readFileSync(path.join(logDir, logFileName(now)), 'utf8')).toBe('next day\n');
+    });
   });
 
   it('never throws and reports once when the directory is unusable', async () => {
