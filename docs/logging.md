@@ -25,11 +25,11 @@ cd app_data/logs
 | `userId` | Optional. The numeric user id, as a string, once the user is signed in. |
 | `event` | Short machine-readable name, for example `auth.google.start`. |
 | `message` | Human-readable text. |
-| `details` | Optional object with event-specific fields. |
+| `details` | Optional object with event-specific fields. Browser `http.failed` paths have no `/api` prefix (`/auth/me`), while backend `http.request` paths do (`/api/auth/me`). |
 
 ```json
 {"ts":"2026-10-18T19:27:58.333Z","level":"info","source":"backend","sessionId":"7f3c2a10-aaaa-bbbb-cccc-111122223333","event":"auth.google.start","message":"Starting Google sign-in"}
-{"ts":"2026-10-18T19:27:58.412Z","level":"warn","source":"browser","sessionId":"7f3c2a10-aaaa-bbbb-cccc-111122223333","userId":"42","event":"http.failed","message":"GET /api/auth/me failed (401)","details":{"name":"AxiosError","status":401,"method":"GET","path":"/api/auth/me"}}
+{"ts":"2026-10-18T19:27:58.412Z","level":"warn","source":"browser","sessionId":"7f3c2a10-aaaa-bbbb-cccc-111122223333","userId":"42","event":"http.failed","message":"GET /auth/me failed (401)","details":{"name":"AxiosError","status":401,"method":"GET","path":"/auth/me"}}
 ```
 
 Events you will meet:
@@ -43,7 +43,7 @@ Lines written at startup have no `sessionId`. The filters below skip lines that 
 
 ## Commands
 
-The examples use the dummy session `7f3c2a10-aaaa-bbbb-cccc-111122223333` and user `42`; substitute your own. Each `app-2026-10-18*.log` glob selects the files created on that local day; use `app-*.log` for everything.
+The examples use the dummy session `7f3c2a10-aaaa-bbbb-cccc-111122223333` and user `42`; substitute your own. Each `app-2026-10-18*.log` glob selects the files created on that local day; use `app-*.log` for everything. If nothing matches a day's glob, the shell, `ls` or `jq` reports "No such file" (zsh: "no matches found"); that only means there is no log for that day.
 
 List the files for one day:
 
@@ -99,9 +99,9 @@ jq -s -r '
   | .[0].sessionId' app-*.log
 ```
 
-This is how a failure at Google itself looks. When Google rejects the request, for example with a redirect URI mismatch, the browser never returns to `/api/auth/google/callback`, so the backend has nothing to log after the start. Check each listed session's browser lines (the session command above): `auth.login.view` and `auth.google.click` with nothing after them confirm it. Sessions that are still mid-sign-in, or where the user simply closed the tab at Google, appear in this list too. Compare the `ts` with when you tried to sign in.
+This is how a failure at Google itself looks. When Google rejects the request, for example with a redirect URI mismatch, the browser never returns to `/api/auth/google/callback`, so the backend has nothing to log after the start. Check each listed session's browser lines (the session command above): `auth.login.view` and `auth.google.click` with nothing after them confirm it. A tab that failed at Google and later signed in successfully has a callback under the same session id, so its earlier failed attempt is not listed. Sessions that are still mid-sign-in, or where the user simply closed the tab at Google, appear in this list too. Compare the `ts` with when you tried to sign in.
 
-Failed HTTP calls reported by browsers, counted by status, method and path:
+Failed HTTP calls reported by browsers, counted by status, method and path (browser paths have no `/api` prefix). The label `network ? ?` is printed when a line has no status, that is a network error or a non-HTTP error:
 
 ```bash
 jq -r 'select(.event == "http.failed")
@@ -109,7 +109,7 @@ jq -r 'select(.event == "http.failed")
   | sort | uniq -c | sort -rn
 ```
 
-Everything that happened to one user, in time order. Browser lines recorded before sign-in carry no `userId`, so list the user's session ids afterwards to see the earlier steps:
+Everything that happened to one user, in time order. On a browser line, `userId` is the user signed in when the batch was sent, so a batch flushed after sign-in can carry the id on earlier events, and lines sent before sign-in carry none. List the user's session ids to see the whole visit:
 
 ```bash
 jq -s -c 'map(select(.userId == "42")) | sort_by(.ts)[]' app-*.log
@@ -131,6 +131,6 @@ The `sessionId` is a random id that a browser tab keeps in `sessionStorage` whil
 | User comes back from Google but is not signed in | `auth.google.outcome` for the session. `no_user` means Google gave no usable account (check `auth.google.callback` for `details.googleError`, for example `access_denied` when the user cancelled). `error` means the backend failed; the `message` and `details.reason` say where. |
 | "Waiting for approval" or "access denied" screen | `auth.google.outcome` with `details.status` `pending` or `denied`, and `auth.callback.view` with the same status in the browser. |
 | Callback page shows an error | `auth.callback.view` with `details.status` `error` (backend redirected with `?status=error`, so look for an `error` outcome just before it), or `auth.callback.result` with `authenticated` false. |
-| Signed in, then bounced back to the login page | `http.failed` with `details.status` 401 on `/api/auth/me` or an API path, then `auth.redirect.login`. Compare with `auth.session.check` for that session: `authenticated: false` means the server did not recognise the session cookie (often a `FRONTEND_URL` or reverse-proxy mismatch). |
+| Signed in, then bounced back to the login page | `http.failed` with `details.status` 401 on `/auth/me` or another API path (browser paths have no `/api` prefix), then `auth.redirect.login`. Compare with `auth.session.check` for that session: `authenticated: false` means the server did not recognise the session cookie (often a `FRONTEND_URL` or reverse-proxy mismatch). |
 | Blank page or broken screen | `window.error`, `window.unhandledrejection`, `vue.error` or `router.error` lines for the session. |
 | Requests failing with no response | `http.failed` with no `details.status` is a network error or timeout; check the backend `http.request` lines at the same time for what the server saw. |
