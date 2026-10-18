@@ -34,6 +34,8 @@ services:
       - APP_DB_PATH=${APP_DB_PATH:-/usr/src/app/data/app/app.db}
       - CALIBRE_DB_DIR=/usr/src/app/data/calibre
       - CALIBRE_DB_NAME=${CALIBRE_DB_NAME:-metadata.db}
+      - TZ=${TZ:-UTC}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
     networks:
       - calibre-network
 

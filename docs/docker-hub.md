@@ -166,6 +166,8 @@ CALIBRE_DB_NAME=metadata.db
 APP_DB_PATH=/usr/src/app/data/app/app.db
 PUID=1000
 PGID=1000
+TZ=UTC
+LOG_RETENTION_DAYS=30
 ```
 
 Keep this `.env` file only on the NAS. It contains secrets and must not be
