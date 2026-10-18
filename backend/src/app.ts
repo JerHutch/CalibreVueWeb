@@ -12,6 +12,7 @@ import {
 } from './controllers/googleAuthController';
 import { initializeController as initializeAdminController } from './controllers/adminController';
 import { requestLogger } from './middleware/loggingMiddleware';
+import { createRateLimiter } from './middleware/rateLimiter';
 import { sessionContext, attachUserToContext } from './middleware/sessionContext';
 
 export interface AppServices {
@@ -44,6 +45,27 @@ export function createApp(
     origin: frontendUrl,
     credentials: true
   }));
+  // Public log endpoint: rate limit first, then a small body limit, both before
+  // the global parser (body-parser skips bodies that are already parsed).
+  app.use('/api/client-logs', createRateLimiter({ windowMs: 60000, max: 60 }));
+  app.use('/api/client-logs', express.json({ limit: '16kb' }));
+  // Answer parser failures (400 malformed, 413 too large) here so Express's
+  // default handler never prints the error, which can quote the offending body.
+  app.use('/api/client-logs', (
+    err: { status?: number; statusCode?: number } | undefined,
+    _req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    if (!err) {
+      return next();
+    }
+    const status = err.status ?? err.statusCode ?? 400;
+    const safeStatus = status === 413 ? 413 : 400;
+    res.status(safeStatus).json({
+      error: safeStatus === 413 ? 'Payload too large' : 'Invalid log payload'
+    });
+  });
   app.use(express.json());
   app.use(sessionContext);
   app.use(requestLogger);
@@ -71,7 +93,7 @@ export function createApp(
           return next(error);
         }
 
-        return next();
+        attachUserToContext(req, _res, next);
       });
     });
   }

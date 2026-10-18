@@ -54,7 +54,10 @@ export class Logger {
   }
   write(entry: Omit<LogEntry, 'ts'> & { ts?: string }) {
     try {
-      this.emit(this.serialize(entry));
+      // Only the user id is inherited from the request context; the session id
+      // belongs to the entry (browser entries carry their own).
+      const userId = entry.userId ?? getContext()?.userId;
+      this.emit(this.serialize(userId ? { ...entry, userId } : entry));
     } catch (error) {
       reportFailure(error);
     }

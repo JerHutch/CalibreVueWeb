@@ -96,13 +96,26 @@ describe('requestLogger', () => {
   });
 
   it('logs nothing for /api/client-logs requests', () => {
-    for (const originalUrl of ['/api/client-logs', '/api/client-logs?x=1']) {
+    for (const originalUrl of [
+      '/api/client-logs',
+      '/api/client-logs?x=1',
+      '/api/client-logs/',
+      '/API/Client-Logs?x=1',
+      '/api/client-logs/extra'
+    ]) {
       const { next, finish } = run({ method: 'POST', originalUrl }, 204);
       finish();
       expect(next).toHaveBeenCalledOnce();
     }
 
     expect(infoSpy).not.toHaveBeenCalled();
+  });
+
+  it('still logs paths that merely share the client-logs prefix', () => {
+    const { finish } = run({ method: 'GET', originalUrl: '/api/client-logs-other' });
+    finish();
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
   });
 
   it('never throws into the request when logging fails', () => {

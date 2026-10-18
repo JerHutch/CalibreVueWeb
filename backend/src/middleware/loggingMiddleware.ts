@@ -2,14 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
 import { sanitizeUrl } from '../utils/redact';
 
-const CLIENT_LOGS_PREFIX = '/api/client-logs';
+const CLIENT_LOGS_PATH = '/api/client-logs';
 
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   try {
     const start = Date.now();
-    const rawPath = (req.originalUrl || '').split('?', 1)[0];
+    const rawPath = (req.originalUrl || '').split('?', 1)[0].toLowerCase();
+    const isClientLogs =
+      rawPath === CLIENT_LOGS_PATH || rawPath.startsWith(`${CLIENT_LOGS_PATH}/`);
 
-    if (!rawPath.startsWith(CLIENT_LOGS_PREFIX)) {
+    if (!isClientLogs) {
       res.on('finish', () => {
         try {
           const path = sanitizeUrl(req.originalUrl);
