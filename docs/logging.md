@@ -36,10 +36,10 @@ Events you will meet:
 
 | Source | Events |
 | --- | --- |
-| backend | `auth.google.start`, `auth.google.callback`, `auth.google.outcome` (`details.status` is `approved`, `pending`, `denied`, `no_user` or `error`), `auth.session.check`, `auth.logout`, `http.request` |
-| browser | `auth.login.view`, `auth.google.click`, `auth.redirect.login`, `auth.callback.view`, `auth.callback.result`, `http.failed`, `router.error`, `window.error`, `window.unhandledrejection`, `vue.error` |
+| backend | `auth.google.start`, `auth.google.callback`, `auth.google.outcome` (`details.status` is `approved`, `pending`, `denied`, `no_user` or `error`), `auth.session.check`, `auth.logout`, `http.request`, `clientlog.budget_exhausted` (the day's browser log budget ran out) |
+| browser | `auth.login.view`, `auth.google.click`, `auth.redirect.login`, `auth.callback.view`, `auth.callback.result`, `http.failed`, `router.error`, `window.error`, `window.unhandledrejection`, `vue.error`, `client.log.dropped` (`details.dropped` entries were dropped by the browser's 60-per-minute cap) |
 
-Lines written at startup have no `sessionId`. The filters below skip lines that lack a field instead of failing.
+A browser can send any event name, including a backend one, so filters that rely on a backend event also check `.source == "backend"`. Lines written at startup have no `sessionId`. The filters below skip lines that lack a field instead of failing.
 
 ## Commands
 
@@ -94,8 +94,8 @@ Sessions that logged `auth.google.start` but never `auth.google.callback`:
 ```bash
 jq -s -r '
   map(select(.sessionId != null)) | group_by(.sessionId)[]
-  | select(any(.[]; .event == "auth.google.start")
-           and (any(.[]; .event == "auth.google.callback") | not))
+  | select(any(.[]; .source == "backend" and .event == "auth.google.start")
+           and (any(.[]; .source == "backend" and .event == "auth.google.callback") | not))
   | .[0].sessionId' app-*.log
 ```
 
