@@ -253,7 +253,7 @@ Other: `backend/Dockerfile`, both compose files, `.env.example`, `docs/docker.md
   - `clientLog` queues; entries are flushed after 5 s, immediately at 20 queued, and with `keepalive: true` on `pagehide`; body is `{ sessionId, entries }`, URL `/api/client-logs`, header `X-Session-Id`.
   - `fetch` rejecting or returning `500`: no exception, at most 2 retries, then the batch is dropped; 150 `clientLog` calls with a dead backend keep the buffer at 100.
   - `flushClientLogs({ timeoutMs: 1000 })` resolves after 1 s when `fetch` never settles.
-  - `describeError` for an axios-shaped error `{ name, code, config: { method: 'get', url: '/books/5/cover?token=x' }, response: { status: 404, data: 'secret' } }` → `{ name, code, status: 404, method: 'GET', path: '/books/5/cover' }` with no query and no body; for `new Error('boom')` → `{ name: 'Error', message: 'boom' }`; for a string → `{ value: <string, max 200 chars> }`.
+  - `describeError` for an axios-shaped error `{ name, code, config: { method: 'get', url: '/books/5/cover?token=x' }, response: { status: 404, data: 'secret' } }` → `{ name, errorCode: code, status: 404, method: 'GET', path: '/books/5/cover' }` (the key is `errorCode` because the backend masks `code`) with no query and no body; for `new Error('boom')` → `{ name: 'Error', message: 'boom' }`; for a string → `{ value: <string, max 200 chars> }`.
   - `installGlobalErrorHandlers`: dispatching `window` `error` and `unhandledrejection` events, and calling `app.config.errorHandler`, each queue an `error`-level entry (`window.error`, `window.unhandledrejection`, `vue.error`).
   - Nothing here throws when `fetch` is undefined.
 - [ ] **Step 2: Run** `bun run test -- --run tests/logging/clientLogger.test.ts`. Expected: FAIL.
