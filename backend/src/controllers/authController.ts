@@ -33,16 +33,26 @@ export const logout = async (req: Request, res: Response) => {
     }
   }
 
+  logger.info('User logged out', { event: 'auth.logout' });
   return res.json({ message: 'Logged out successfully' });
 };
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   try {
     if (typeof req.isAuthenticated !== 'function' || !req.isAuthenticated() || !req.user) {
+      logger.info('Session check: not authenticated', {
+        event: 'auth.session.check',
+        details: { authenticated: false }
+      });
       return res.json({ authenticated: false });
     }
 
     const user = req.user as User;
+    logger.info(`Session check: user ${user.id} is ${user.status}`, {
+      event: 'auth.session.check',
+      userId: String(user.id),
+      details: { authenticated: user.status === 'approved', status: user.status }
+    });
 
     return res.json({
       authenticated: user.status === 'approved',

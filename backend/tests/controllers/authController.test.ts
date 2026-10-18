@@ -4,6 +4,20 @@ import { logout, getCurrentUser } from '../../src/controllers/authController';
 import { User } from '../../src/services/authService';
 import logger from '../../src/utils/logger';
 
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+function eventCalls(event: string) {
+  return (logger.info as any).mock.calls.filter((call: any[]) => call[1]?.event === event);
+}
+
+function allLoggedText() {
+  return JSON.stringify([
+    ...(logger.info as any).mock.calls,
+    ...(logger.warn as any).mock.calls,
+    ...(logger.error as any).mock.calls
+  ]);
+}
+
 describe('Auth Controller', () => {
   let mockRequest: any;
   let mockResponse: Partial<Response>;
@@ -24,7 +38,8 @@ describe('Auth Controller', () => {
       json: vi.fn()
     };
 
-    // Mock logger.error
+    vi.spyOn(logger, 'info').mockImplementation(() => {});
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
     vi.spyOn(logger, 'error').mockImplementation(() => {});
 
     vi.clearAllMocks();
@@ -44,6 +59,7 @@ describe('Auth Controller', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: 'Logged out successfully'
       });
+      expect(eventCalls('auth.logout')).toHaveLength(1);
     });
 
     it('should return an error if logout fails', async () => {
@@ -59,6 +75,7 @@ describe('Auth Controller', () => {
         error: 'Logout failed'
       });
       expect(logger.error).toHaveBeenCalled();
+      expect(eventCalls('auth.logout')).toHaveLength(0);
     });
 
     it('should return an error if session destroy fails', async () => {
@@ -84,6 +101,9 @@ describe('Auth Controller', () => {
       expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).toHaveBeenCalledWith({
         authenticated: false
+      });
+      expect(eventCalls('auth.session.check')[0][1]).toMatchObject({
+        details: { authenticated: false }
       });
     });
 
@@ -134,6 +154,11 @@ describe('Auth Controller', () => {
         user: pendingUser,
         status: 'pending'
       });
+      expect(eventCalls('auth.session.check')[0][1]).toMatchObject({
+        userId: '123',
+        details: { authenticated: false, status: 'pending' }
+      });
+      expect(allLoggedText()).not.toMatch(EMAIL_PATTERN);
     });
 
     it('should return approved session state for approved users', async () => {
@@ -154,6 +179,11 @@ describe('Auth Controller', () => {
         user: mockUser,
         status: 'approved'
       });
+      expect(eventCalls('auth.session.check')[0][1]).toMatchObject({
+        userId: '123',
+        details: { authenticated: true, status: 'approved' }
+      });
+      expect(allLoggedText()).not.toMatch(EMAIL_PATTERN);
     });
 
     it('should return denied session state for denied users', async () => {

@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import logger from '../utils/logger';
+import { getContext } from '../utils/requestContext';
 
 // Load environment variables
 const envFile = process.env.NODE_ENV === 'production' ? '.prod.env' : '.development.env';
@@ -18,21 +19,25 @@ export function initializePassportSession(authService: AuthService) {
 
     // Configure passport serialization
     passport.serializeUser((user: any, done) => {
-        logger.info(`Serializing user with ID: ${user.id}`);
         done(null, user.id);
     });
 
     passport.deserializeUser(async (id: number, done) => {
-        logger.info(`Deserializing user with ID: ${id}`);
         try {
             const user = await authService.getUserById(id.toString());
-            logger.info(`Successfully deserialized user: ${user?.email}`);
             done(null, user);
         } catch (error) {
             logger.error(`Error deserializing user: ${error}`);
             done(error, null);
         }
     });
+}
+
+function setContextUserId(userId: unknown) {
+    const ctx = getContext();
+    if (ctx && userId !== undefined && userId !== null) {
+        ctx.userId = String(userId);
+    }
 }
 
 export function initializeGoogleStrategy(authService: AuthService) {
@@ -43,29 +48,30 @@ export function initializeGoogleStrategy(authService: AuthService) {
         callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/api/auth/google/callback`
     },
         async function(accessToken: string, refreshToken: string, profile: any, done: any) {
-            logger.info(`Google OAuth callback received for profile: ${profile.emails?.[0]?.value}`);
+            logger.info('Google OAuth profile received');
             const user = await authService.findOrCreateUser(profile);
-            logger.info('User lookup/creation result:' + (user ? ` Found user: ${user.email}` : ' No user found'));
-            
+
             if (user) {
+                setContextUserId(user.id);
+                logger.info(`User lookup/creation succeeded for user ${user.id}`);
                 if (user.status === 'pending') {
-                    logger.info(`User ${user.email} attempted to login but account is pending approval`);
+                    logger.info(`User ${user.id} attempted to login but account is pending approval`);
                     return done(null, false, {
                         status: 'pending',
                         message: 'Your account is pending approval by an administrator.'
                     });
                 }
                 if (user.status === 'denied') {
-                    logger.info(`User ${user.email} attempted to login but account is denied`);
+                    logger.info(`User ${user.id} attempted to login but account is denied`);
                     return done(null, false, {
                         status: 'denied',
                         message: 'Your account has been denied access.'
                     });
                 }
-                logger.info(`Successfully authenticated user: ${user.email}`);
+                logger.info(`Successfully authenticated user ${user.id}`);
                 done(null, user);
             } else {
-                logger.info('Authentication failed - no user found');
+                logger.info('User lookup/creation returned no user; authentication failed');
                 done(null, false);
             }
         }
@@ -78,23 +84,46 @@ export function initializeController(authService: AuthService) {
 }
 
 export function authenticateGoogle() {
-    logger.info('Initiating Google authentication...');
-    return passport.authenticate('google', {
+    const authenticate = passport.authenticate('google', {
         scope: ['profile', 'email'],
         state: true
     } as any);
+
+    return (req: Request, res: Response, next: any) => {
+        logger.info('Starting Google sign-in', { event: 'auth.google.start' });
+        return authenticate(req, res, next);
+    };
+}
+
+const MAX_GOOGLE_ERROR_LENGTH = 100;
+
+function readGoogleError(req: Request): string | undefined {
+    const value = req.query?.error;
+    if (typeof value !== 'string' || value.length === 0) {
+        return undefined;
+    }
+    return value.slice(0, MAX_GOOGLE_ERROR_LENGTH);
 }
 
 export function handleGoogleCallback() {
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const callbackUrl = `${baseUrl}/auth/google/callback`;
     const errorRedirectUrl = `${callbackUrl}?status=error`;
-    logger.info('Handling Google OAuth callback... baseUrl ' + baseUrl);
 
     return (req: Request, res: Response, next: any) => {
+        const googleError = readGoogleError(req);
+        logger.info('Google sign-in callback received', {
+            event: 'auth.google.callback',
+            details: googleError ? { googleError } : {}
+        });
+
         passport.authenticate('google', {}, (error: unknown, user: Express.User | false, info?: { status?: string }) => {
             if (error) {
-                logger.error(`Google OAuth callback error: ${error}`);
+                const description = error instanceof Error ? `${error.name}: ${error.message}` : 'non-error value';
+                logger.error(`Google sign-in failed in passport: ${description}`, {
+                    event: 'auth.google.outcome',
+                    details: { status: 'error', reason: 'passport_error' }
+                });
                 return res.redirect(errorRedirectUrl);
             }
 
@@ -102,16 +131,33 @@ export function handleGoogleCallback() {
                 const status = info?.status === 'pending' || info?.status === 'denied'
                     ? info.status
                     : undefined;
+                logger.warn(`Google sign-in not completed: ${status ?? 'no user'}`, {
+                    event: 'auth.google.outcome',
+                    details: { status: status ?? 'no_user' }
+                });
                 const redirectUrl = status ? `${callbackUrl}?status=${status}` : callbackUrl;
                 return res.redirect(redirectUrl);
             }
 
+            const userId = String((user as { id?: unknown }).id);
+            setContextUserId(userId);
+
             req.logIn(user, (loginError) => {
                 if (loginError) {
-                    logger.error(`Google OAuth session creation failed: ${loginError}`);
+                    const description = loginError instanceof Error ? `${loginError.name}: ${loginError.message}` : 'non-error value';
+                    logger.error(`Google sign-in session creation failed: ${description}`, {
+                        event: 'auth.google.outcome',
+                        userId,
+                        details: { status: 'error', reason: 'login_failed' }
+                    });
                     return res.redirect(errorRedirectUrl);
                 }
 
+                logger.info('Google sign-in approved', {
+                    event: 'auth.google.outcome',
+                    userId,
+                    details: { status: 'approved' }
+                });
                 return next();
             });
         })(req, res, next);
