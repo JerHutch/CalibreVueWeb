@@ -3,6 +3,7 @@ import { clientLog, flushClientLogs } from '@/logging/clientLogger';
 import { setSignInCookie } from '@/logging/sessionId';
 
 const FLUSH_TIMEOUT_MS = 1000;
+const RESET_AFTER_REDIRECT_MS = 3000;
 
 export default {
   name: 'OAuthLoginView',
@@ -12,7 +13,17 @@ export default {
     };
   },
   mounted() {
+    this.onPageShow = (event) => {
+      if (event.persisted) {
+        this.signingIn = false;
+      }
+    };
+    window.addEventListener('pageshow', this.onPageShow);
     clientLog('info', 'auth.login.view', 'Login page shown');
+  },
+  beforeUnmount() {
+    window.removeEventListener('pageshow', this.onPageShow);
+    clearTimeout(this.resetTimer);
   },
   methods: {
     async handleGoogleLogin() {
@@ -37,6 +48,10 @@ export default {
       } finally {
         clearTimeout(timer);
         window.location.href = '/api/auth/google';
+        // A cancelled navigation must not leave the button dead.
+        this.resetTimer = setTimeout(() => {
+          this.signingIn = false;
+        }, RESET_AFTER_REDIRECT_MS);
       }
     }
   }

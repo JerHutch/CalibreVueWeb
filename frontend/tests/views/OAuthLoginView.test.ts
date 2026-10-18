@@ -28,6 +28,9 @@ describe('OAuthLoginView', () => {
     vi.clearAllMocks();
     order.length = 0;
     hrefSet = [];
+    clientLogMock.mockImplementation((...args: unknown[]) => {
+      order.push(`log:${String(args[1])}`);
+    });
     flushMock.mockImplementation(async () => {
       order.push('flush');
     });
@@ -111,5 +114,84 @@ describe('OAuthLoginView', () => {
     await flushPromises();
     expect(hrefSet).toEqual(['/api/auth/google']);
     expect(flushMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not redirect at 900 ms when flush hangs, but does by 1100 ms', async () => {
+    vi.useFakeTimers();
+    flushMock.mockImplementation(() => new Promise(() => {}));
+    const wrapper = mount(OAuthLoginView);
+    await wrapper.get('button').trigger('click');
+    await vi.advanceTimersByTimeAsync(900);
+    expect(hrefSet).toEqual([]);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(hrefSet).toEqual(['/api/auth/google']);
+  });
+
+  it('leaves only the re-enable timer after the fast path, and none after unmount', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(OAuthLoginView);
+    await wrapper.get('button').trigger('click');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(hrefSet).toEqual(['/api/auth/google']);
+    expect(vi.getTimerCount()).toBe(1);
+    wrapper.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('still redirects when clientLog throws', async () => {
+    const wrapper = mount(OAuthLoginView);
+    clientLogMock.mockImplementation(() => {
+      throw new Error('log');
+    });
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(hrefSet).toEqual(['/api/auth/google']);
+  });
+
+  it('re-enables sign-in on pageshow with persisted true', async () => {
+    const wrapper = mount(OAuthLoginView);
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(hrefSet).toEqual(['/api/auth/google', '/api/auth/google']);
+  });
+
+  it('does not reset on pageshow with persisted false', async () => {
+    const wrapper = mount(OAuthLoginView);
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(hrefSet).toEqual(['/api/auth/google']);
+  });
+
+  it('re-enables sign-in about 3 s after the redirect', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(OAuthLoginView);
+    await wrapper.get('button').trigger('click');
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(2900);
+    await wrapper.get('button').trigger('click');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(hrefSet).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(200);
+    await wrapper.get('button').trigger('click');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(hrefSet).toHaveLength(2);
+  });
+
+  it('removes the pageshow listener on unmount', () => {
+    const add = vi.spyOn(window, 'addEventListener');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const wrapper = mount(OAuthLoginView);
+    const handler = add.mock.calls.find((c) => c[0] === 'pageshow')?.[1];
+    expect(handler).toBeTypeOf('function');
+    wrapper.unmount();
+    expect(remove).toHaveBeenCalledWith('pageshow', handler);
+    add.mockRestore();
+    remove.mockRestore();
   });
 });
