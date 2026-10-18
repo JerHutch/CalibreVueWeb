@@ -81,8 +81,8 @@ Key points:
 - `FRONTEND_URL` must be the real URL users type into the browser.
 - If you put the app behind Synology Reverse Proxy, use the public HTTPS URL there.
 - `PUID` and `PGID` must match a NAS user and group that can read the Calibre library, for example the owner shown by `ls -ldn /volume1/books/calibre`. Synology ACLs can block the default `1000:1000` even when the folder looks world-accessible; the backend log reports `EACCES` when that happens.
-- `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. Log files roll over at local midnight in this zone.
-- `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep. `LOG_DIR` (optional) overrides the log directory; the default is `/usr/src/app/logs` in the container, mounted from `app_data/logs`.
+- `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. A new log file is created on the first log line after local midnight in this zone.
+- `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep; a missing, invalid or non-positive value falls back to `30`. `LOG_DIR` (optional) overrides the log directory; the default is `/usr/src/app/logs` in the container, mounted from `app_data/logs`.
 - `CALIBRE_DB_PATH` is only used by Compose-style host mapping. If you configure volumes manually in the Synology UI, what matters most is that the container still sees the library at `/usr/src/app/data/calibre`.
 
 ## Logs
@@ -91,7 +91,7 @@ The backend writes JSON-line log files to `app_data/logs`, one file per containe
 
 Browser errors and sign-in steps are posted to the public `POST /api/client-logs`, limited to 60 requests per minute per client IP. Behind Synology Reverse Proxy and the frontend nginx container, requests may all appear to come from one address and share that limit. This is acceptable for a handful of users.
 
-A guide to filtering the logs with `jq` and `grep` will be at [docs/logging.md](logging.md).
+See [Reading The Logs](logging.md) for filtering the logs with `jq` and `grep`.
 
 ## Deployment Options
 

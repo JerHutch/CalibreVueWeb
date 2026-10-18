@@ -51,8 +51,8 @@ Notes:
 - `APP_DB_PATH` is the backend's writable app database path inside the container. The default works with the Compose volume setup and usually should not be changed.
 - `PUID` and `PGID` are the numeric user and group ids the backend runs as (default `1000`). Set them to a user that can read the Calibre library and write the `app_data` folder. If the backend log shows `EACCES` for the library, this is the setting to change.
 - `FRONTEND_URL` must match the URL users actually open in the browser. The OAuth redirect flow depends on it.
-- `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. Log files roll over to a new file at local midnight in this zone.
-- `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep.
+- `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. A new log file is created on the first log line after local midnight in this zone.
+- `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep. A missing, invalid or non-positive value falls back to `30`.
 - `LOG_DIR` (optional) overrides the log directory. The default is `logs` under the app directory, `/usr/src/app/logs` in the container; leave it alone when using the Compose volumes.
 
 ## Create Your Environment File
@@ -88,7 +88,7 @@ The backend uses three storage locations:
   - Files older than `LOG_RETENTION_DAYS` are deleted at startup and at each daily rollover. Only files matching the `app-*.log` pattern are removed; an older `app.log` is never deleted.
   - Day boundaries follow the container's `TZ`. The same JSON lines are written to the console, so they also show in `docker compose logs`.
   - Browser errors and sign-in steps reach the backend through the public `POST /api/client-logs`, limited to 60 requests per minute per client IP. Behind a reverse proxy and the frontend nginx container, clients may share one address and one limit; this is acceptable for a handful of users.
-  - See `docs/logging.md` for filtering the logs with `jq` and `grep`.
+  - See [Reading The Logs](logging.md) for filtering the logs with `jq` and `grep`.
 
 The tracked `app_data/.gitkeep` creates the host data directory for local checkouts.
 At startup, the backend container ensures both writable directories are owned by the
