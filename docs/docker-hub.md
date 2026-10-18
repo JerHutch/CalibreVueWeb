@@ -164,6 +164,8 @@ GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
 CALIBRE_DB_PATH=/volume1/books/calibre
 CALIBRE_DB_NAME=metadata.db
 APP_DB_PATH=/usr/src/app/data/app/app.db
+PUID=1000
+PGID=1000
 ```
 
 Keep this `.env` file only on the NAS. It contains secrets and must not be

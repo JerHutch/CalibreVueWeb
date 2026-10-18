@@ -70,12 +70,15 @@ GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
 CALIBRE_DB_PATH=/volume1/books/calibre
 CALIBRE_DB_NAME=metadata.db
 APP_DB_PATH=/usr/src/app/data/app/app.db
+PUID=1000
+PGID=1000
 ```
 
 Key points:
 
 - `FRONTEND_URL` must be the real URL users type into the browser.
 - If you put the app behind Synology Reverse Proxy, use the public HTTPS URL there.
+- `PUID` and `PGID` must match a NAS user and group that can read the Calibre library, for example the owner shown by `ls -ldn /volume1/books/calibre`. Synology ACLs can block the default `1000:1000` even when the folder looks world-accessible; the backend log reports `EACCES` when that happens.
 - `CALIBRE_DB_PATH` is only used by Compose-style host mapping. If you configure volumes manually in the Synology UI, what matters most is that the container still sees the library at `/usr/src/app/data/calibre`.
 
 ## Deployment Options

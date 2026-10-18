@@ -38,6 +38,8 @@ GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
 CALIBRE_DB_PATH=/absolute/path/to/calibre/library
 CALIBRE_DB_NAME=metadata.db
 APP_DB_PATH=/usr/src/app/data/app/app.db
+PUID=1000
+PGID=1000
 ```
 
 Notes:
@@ -45,6 +47,7 @@ Notes:
 - `CALIBRE_DB_PATH` is the host directory that gets mounted read-only into the backend container at `/usr/src/app/data/calibre`.
 - `CALIBRE_DB_NAME` defaults to `metadata.db`. Change it only if your Calibre database file has a different name.
 - `APP_DB_PATH` is the backend's writable app database path inside the container. The default works with the Compose volume setup and usually should not be changed.
+- `PUID` and `PGID` are the numeric user and group ids the backend runs as (default `1000`). Set them to a user that can read the Calibre library and write the `app_data` folder. If the backend log shows `EACCES` for the library, this is the setting to change.
 - `FRONTEND_URL` must match the URL users actually open in the browser. The OAuth redirect flow depends on it.
 
 ## Create Your Environment File
