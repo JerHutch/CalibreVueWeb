@@ -55,6 +55,10 @@ const UNSERIALIZABLE = '[Unserializable]';
 
 const BEARER_PATTERN = /\bBearer\s+[^\s,;"']+/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g;
+// Google OAuth access (ya29.) and refresh (1//) tokens. One flat character
+// class each, so matching stays linear on the capped input.
+const GOOGLE_ACCESS_TOKEN_PATTERN = /\bya29\.[A-Za-z0-9_.-]+/g;
+const GOOGLE_REFRESH_TOKEN_PATTERN = /\b1\/\/[A-Za-z0-9_-]+/g;
 const EMAIL_PATTERN = /[A-Za-z0-9._%+-]{1,64}(?:@|%40)[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,}/gi;
 const QUERY_PARAM_PATTERN = /([?&])([^=&\s#]+)=([^&\s#]*)/g;
 const PAIR_PATTERN = /\b([A-Za-z0-9_.-]{1,64})=([^\s&,;"']+)/g;
@@ -89,6 +93,8 @@ function redactPatterns(input: string): string {
   return input
     .replace(BEARER_PATTERN, `Bearer ${REDACTED_VALUE}`)
     .replace(JWT_PATTERN, REDACTED_VALUE)
+    .replace(GOOGLE_ACCESS_TOKEN_PATTERN, REDACTED_VALUE)
+    .replace(GOOGLE_REFRESH_TOKEN_PATTERN, REDACTED_VALUE)
     .replace(EMAIL_PATTERN, '[email]')
     .replace(QUERY_PARAM_PATTERN, (match, separator: string, name: string) =>
       isSensitiveKey(decodeKey(name)) ? `${separator}${name}=${REDACTED_VALUE}` : match

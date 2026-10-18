@@ -258,6 +258,31 @@ describe('POST /api/client-logs', () => {
     expect(all).not.toMatch(/eyJlbWF|c2lnbm/);
   });
 
+  it('keeps the browser errorCode readable in the written line while code stays masked', async () => {
+    writeSpy.mockRestore();
+    const lines: string[] = [];
+    const destinations = (logger as any).destinations as Array<{ log: (line: string) => void }>;
+    const capture = { log: (line: string) => lines.push(line) };
+    destinations.push(capture);
+    try {
+      const res = await request(createTestApp())
+        .post('/api/client-logs')
+        .send({
+          sessionId: SESSION,
+          entries: [entry({ event: 'http.failed', details: { errorCode: 'ERR_NETWORK', code: 'ERR_NETWORK' } })]
+        });
+      expect(res.status).toBe(204);
+    } finally {
+      destinations.splice(destinations.indexOf(capture), 1);
+    }
+
+    const browser = lines.filter(line => line.includes('"source":"browser"'));
+    expect(browser).toHaveLength(1);
+    const parsed = JSON.parse(browser[0]);
+    expect(parsed.details.errorCode).toBe('ERR_NETWORK');
+    expect(parsed.details.code).toBe('********');
+  });
+
   it('drops invalid details instead of rejecting', async () => {
     const res = await request(createTestApp())
       .post('/api/client-logs')

@@ -106,6 +106,55 @@ describe('Logger JSON entries', () => {
     });
   });
 
+  it('falls back to info for an unknown level', () => {
+    const { lines, logger } = capture();
+    logger.write({ level: 'debug\n{"x":1}' as any, source: 'backend', event: 'a.b', message: 'm' });
+    expect(JSON.parse(lines[0]).level).toBe('info');
+  });
+
+  it('falls back to backend for an unknown source', () => {
+    const { lines, logger } = capture();
+    logger.write({ level: 'warn', source: 'admin' as any, event: 'a.b', message: 'm' });
+    expect(JSON.parse(lines[0])).toMatchObject({ level: 'warn', source: 'backend' });
+  });
+
+  it('replaces an event that is not a short safe name with log', () => {
+    const { lines, logger } = capture();
+    logger.info('a', { event: 'auth.google.start' });
+    logger.info('b', { event: 'Bearer abc.def token=x' });
+    logger.info('c', { event: 'e'.repeat(65) });
+    logger.info('d', { event: 'a@b.com' });
+    logger.write({ level: 'info', source: 'backend', event: 5 as any, message: 'e' });
+    expect(lines.map((line) => JSON.parse(line).event)).toEqual([
+      'auth.google.start', 'log', 'log', 'log', 'log'
+    ]);
+  });
+
+  it('omits a session id that is not valid', () => {
+    const { lines, logger } = capture();
+    logger.info('a', { sessionId: 'valid-session-1' });
+    logger.info('b', { sessionId: 'Bearer eyJabc.def.ghi' });
+    logger.info('c', { sessionId: 'short' });
+    logger.write({ level: 'info', source: 'backend', sessionId: { a: 1 } as any, event: 'x', message: 'd' });
+    expect(JSON.parse(lines[0]).sessionId).toBe('valid-session-1');
+    for (const line of lines.slice(1)) {
+      expect(JSON.parse(line)).not.toHaveProperty('sessionId');
+    }
+  });
+
+  it('redacts and caps the user id', () => {
+    const { lines, logger } = capture();
+    logger.info('a', { userId: '42' });
+    logger.info('b', { userId: 'reader@example.com' });
+    logger.info('c', { userId: 'u'.repeat(100) });
+    logger.write({ level: 'info', source: 'backend', userId: 7 as any, event: 'x', message: 'd' });
+    const ids = lines.map((line) => JSON.parse(line).userId);
+    expect(ids[0]).toBe('42');
+    expect(ids[1]).toBe('[email]');
+    expect(ids[2]).toHaveLength(64);
+    expect(ids[3]).toBe('7');
+  });
+
   it('keeps newlines inside a single line', () => {
     const { lines, logger } = capture();
     logger.info('a\nb');

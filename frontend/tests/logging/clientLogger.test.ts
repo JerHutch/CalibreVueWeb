@@ -355,11 +355,17 @@ describe('clientLogger', () => {
       });
       expect(result).toEqual({
         name: 'AxiosError',
-        code: 'ERR_BAD_REQUEST',
+        errorCode: 'ERR_BAD_REQUEST',
         status: 404,
         method: 'GET',
         path: '/books/5/cover'
       });
+    });
+
+    it('reports the axios code as errorCode, never under the masked key code', () => {
+      const result = describeError({ isAxiosError: true, name: 'AxiosError', code: 'ERR_NETWORK' });
+      expect(result).toEqual({ name: 'AxiosError', errorCode: 'ERR_NETWORK' });
+      expect(result).not.toHaveProperty('code');
     });
 
     it('strips origin and fragment from the path and omits missing fields', () => {

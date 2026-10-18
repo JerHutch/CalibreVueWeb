@@ -90,7 +90,7 @@ describe('api axios instance', () => {
       'error',
       'http.failed',
       'GET /books failed (network error)',
-      expect.objectContaining({ code: 'ERR_NETWORK' })
+      expect.objectContaining({ errorCode: 'ERR_NETWORK' })
     );
   });
 

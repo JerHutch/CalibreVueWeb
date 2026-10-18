@@ -298,8 +298,9 @@ export function describeError(error: unknown): ClientLogDetails {
         const result: ClientLogDetails = {
           name: String(err.name ?? 'AxiosError').slice(0, 100)
         };
+        // Not `code`: the backend masks that key as an OAuth code.
         if (typeof err.code === 'string') {
-          result.code = err.code.slice(0, 100);
+          result.errorCode = err.code.slice(0, 100);
         }
         const responseStatus = err.response?.status;
         if (typeof responseStatus === 'number' && Number.isFinite(responseStatus)) {

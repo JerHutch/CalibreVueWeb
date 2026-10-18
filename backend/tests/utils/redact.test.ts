@@ -105,6 +105,37 @@ describe('redactText hardening', () => {
   it('leaves bare code and state pairs alone in prose', () => {
     expect(redactText('code=5 state=ok')).toBe('code=5 state=ok');
   });
+
+  it('masks Google access tokens in free text', () => {
+    expect(redactText('got ya29.a0AfH6SM-bc_d.ef42 back')).toBe(`got ${REDACTED_VALUE} back`);
+    expect(redactText('/x?t=ya29.abc&ok=1')).not.toContain('ya29');
+  });
+
+  it('masks Google refresh tokens in free text', () => {
+    expect(redactText('refresh 1//0gAbC-d_E12 stored')).toBe(`refresh ${REDACTED_VALUE} stored`);
+  });
+
+  it('leaves look-alikes that are not Google tokens alone', () => {
+    expect(redactText('http://host/a1//b and ya29 and 1// end')).toBe(
+      'http://host/a1//b and ya29 and 1// end'
+    );
+  });
+
+  it('stays fast on long runs of Google token prefixes', () => {
+    const start = performance.now();
+    redactText('ya29.'.repeat(1000));
+    redactText('1//'.repeat(1500));
+    redactText(`ya29.${'a'.repeat(200000)}`);
+    expect(performance.now() - start).toBeLessThan(50);
+  });
+
+  it('does not leak a Google token cut at the length cap', () => {
+    const token = `ya29.${'A'.repeat(100)}`;
+    const text = `${'a '.repeat(2040)}${token} tail`;
+    const result = redactText(text);
+    expect(result).not.toMatch(/ya29|AAAA/);
+    expect(result.endsWith('[Truncated]')).toBe(true);
+  });
 });
 
 describe('redactValue', () => {

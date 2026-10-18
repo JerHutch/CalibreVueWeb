@@ -1,7 +1,12 @@
 import path from 'path';
 import { redactText, redactValue } from './redact';
-import { getContext } from './requestContext';
+import { getContext, isValidSessionId } from './requestContext';
 import { RollingFileDestination } from './rollingFileDestination';
+
+const LEVELS: readonly unknown[] = ['info', 'warn', 'error'];
+const SOURCES: readonly unknown[] = ['backend', 'browser'];
+const EVENT_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+const MAX_USER_ID_LENGTH = 64;
 
 export interface LogDestination {
   log: (message: string) => void;
@@ -84,14 +89,17 @@ export class Logger {
   }
 
   private serialize(entry: Omit<LogEntry, 'ts'> & { ts?: string }): string {
+    // These fields bypass redaction, so only known-safe shapes are written.
     const ordered: Record<string, unknown> = {
       ts: entry.ts ?? new Date().toISOString(),
-      level: entry.level,
-      source: entry.source
+      level: LEVELS.includes(entry.level) ? entry.level : 'info',
+      source: SOURCES.includes(entry.source) ? entry.source : 'backend'
     };
-    if (entry.sessionId) ordered.sessionId = entry.sessionId;
-    if (entry.userId) ordered.userId = entry.userId;
-    ordered.event = entry.event || 'log';
+    if (isValidSessionId(entry.sessionId)) ordered.sessionId = entry.sessionId;
+    if (entry.userId) ordered.userId = redactText(String(entry.userId)).slice(0, MAX_USER_ID_LENGTH);
+    ordered.event = typeof entry.event === 'string' && EVENT_PATTERN.test(entry.event)
+      ? entry.event
+      : 'log';
     ordered.message = redactText(String(entry.message));
     try {
       if (entry.details !== undefined) {
