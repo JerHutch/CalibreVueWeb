@@ -35,6 +35,8 @@ export class RollingFileDestination implements LogDestination {
   private readonly now: () => Date;
   private stream: fs.WriteStream | null = null;
   private currentKey: string | null = null;
+  // The file opened for currentKey, set only once its directory is usable.
+  private currentPath: string | null = null;
   // Set while file logging is failing: when it failed and on which local day.
   private failedAt: number | null = null;
   private failedKey: string | null = null;
@@ -61,7 +63,8 @@ export class RollingFileDestination implements LogDestination {
       if (this.failedAt !== null) {
         // Lines in the cooldown are not buffered; the console still has them.
         if (key === this.failedKey && !this.elapsed(this.failedAt, now)) return;
-        this.open(now);
+        // A same-day retry reuses the failed file instead of adding a new one.
+        this.open(now, key === this.failedKey ? this.currentPath : null);
       } else if (key !== this.currentKey) {
         this.closeStream();
         this.open(now);
@@ -80,14 +83,16 @@ export class RollingFileDestination implements LogDestination {
     await Promise.all([...this.closing]);
   }
 
-  private open(now: Date): void {
+  private open(now: Date, reusePath: string | null = null): void {
     const key = logDateKey(now);
     this.currentKey = key;
+    this.currentPath = null;
     this.failedAt = null;
     this.failedKey = null;
     ensureDir(this.dir);
     deleteExpiredLogs(this.dir, this.retentionDays, now);
-    const filePath = path.join(this.dir, logFileName(now));
+    const filePath = reusePath ?? path.join(this.dir, logFileName(now));
+    this.currentPath = filePath;
     const stream = fs.createWriteStream(filePath, { flags: 'a' });
     stream.on('error', (error) => {
       if (this.stream === stream) {

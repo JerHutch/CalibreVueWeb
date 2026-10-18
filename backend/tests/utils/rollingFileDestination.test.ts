@@ -150,6 +150,24 @@ describe('RollingFileDestination', () => {
       expect(spy).toHaveBeenCalledTimes(2);
     });
 
+    it('reopens the same file on a same-day retry after a stream error', async () => {
+      unblock();
+      const start = new Date(2026, 9, 18, 9, 0, 0);
+      let now = start;
+      const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+      const stream = (dest as any).stream as fs.WriteStream;
+      await new Promise((resolve) => stream.once('open', resolve));
+      stream.emit('error', new Error('ENOSPC: no space left on device'));
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      now = new Date(start.getTime() + 61000);
+      dest.log('after');
+      await dest.flush();
+      const files = fs.readdirSync(logDir).filter((name) => name.startsWith('app-'));
+      expect(files).toEqual([logFileName(start)]);
+      expect(fs.readFileSync(path.join(logDir, files[0]), 'utf8')).toBe('after\n');
+    });
+
     it('still retries on the next local day, even within the cooldown', async () => {
       let now = new Date(2026, 9, 18, 23, 59, 50);
       const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
