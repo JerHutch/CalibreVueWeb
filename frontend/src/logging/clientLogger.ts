@@ -64,7 +64,12 @@ function sanitizeDetails(details: unknown): ClientLogDetails {
     if (!key) {
       continue;
     }
-    const value = (details as Record<string, unknown>)[rawKey];
+    let value: unknown;
+    try {
+      value = (details as Record<string, unknown>)[rawKey];
+    } catch {
+      continue;
+    }
     if (typeof value === 'string') {
       result[key] = value.slice(0, MAX_DETAIL_VALUE_LENGTH);
     } else if (typeof value === 'number' && Number.isFinite(value)) {
@@ -80,8 +85,14 @@ function sanitizeDetails(details: unknown): ClientLogDetails {
 }
 
 function stripUrl(url: unknown): string {
-  return String(url ?? '')
+  const text = String(url ?? '');
+  const opaque = /^(blob|data):/i.exec(text);
+  if (opaque) {
+    return `${opaque[1].toLowerCase()}:`;
+  }
+  return text
     .replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i, '')
+    .replace(/^\/\/[^/?#]*/, '')
     .split(/[?#]/)[0];
 }
 
@@ -218,7 +229,12 @@ export function flushClientLogs(
   options: { keepalive?: boolean; timeoutMs?: number } = {}
 ): Promise<void> {
   try {
-    if (!current) {
+    let running = current;
+    if (running && options.keepalive === true && queue.length > 0) {
+      // The running cycle already took its own snapshot, so this only sends
+      // what was queued since. Used for pagehide / redirect flushes.
+      running = runCycle(true);
+    } else if (!running) {
       if (timer !== null) {
         clearTimeout(timer);
         timer = null;
@@ -232,12 +248,12 @@ export function flushClientLogs(
         }
       });
       current = cycle;
+      running = cycle;
     }
-    const running = current;
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     return new Promise<void>((resolve) => {
       const id = setTimeout(resolve, timeoutMs);
-      running.then(() => {
+      (running as Promise<void>).then(() => {
         clearTimeout(id);
         resolve();
       });
@@ -385,6 +401,13 @@ export function installGlobalErrorHandlers(app: App): void {
         }
         if (previous) {
           previous(err, instance, info);
+        } else {
+          // Vue skips its default console output once a handler is set.
+          try {
+            console.error(err);
+          } catch {
+            // ignore
+          }
         }
       };
     }

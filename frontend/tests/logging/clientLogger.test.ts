@@ -97,7 +97,9 @@ describe('clientLogger', () => {
     it('splits larger backlogs into requests of at most 20 entries', async () => {
       for (let i = 0; i < 45; i += 1) clientLog('info', 'a.b', `m${i}`);
       await vi.advanceTimersByTimeAsync(10000);
-      expect(sentEntries()).toHaveLength(45);
+      expect(sentEntries().map((e) => e.message)).toEqual(
+        Array.from({ length: 45 }, (_, i) => `m${i}`)
+      );
       for (const b of bodies()) {
         expect(b.entries.length).toBeLessThanOrEqual(20);
       }
@@ -108,12 +110,14 @@ describe('clientLogger', () => {
         ['a', 'b', 'c', 'd', 'e'].map((k) => [k, '€'.repeat(200)])
       );
       for (let i = 0; i < 12; i += 1) {
-        clientLog('error', 'a.b', '€'.repeat(1000), details);
+        clientLog('error', 'a.b', `${i}:${'€'.repeat(990)}`, details);
       }
       await flushClientLogs();
       await vi.advanceTimersByTimeAsync(10000);
       expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
-      expect(sentEntries()).toHaveLength(12);
+      expect(sentEntries().map((e) => e.message.split(':')[0])).toEqual(
+        Array.from({ length: 12 }, (_, i) => `${i}`)
+      );
       for (const [, init] of fetchMock.mock.calls) {
         expect(byteLength((init as FetchInit).body)).toBeLessThanOrEqual(15000);
       }
@@ -162,6 +166,47 @@ describe('clientLogger', () => {
       await vi.advanceTimersByTimeAsync(10000);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(sentEntries()).toHaveLength(2);
+    });
+
+    it('sends late entries with keepalive while a send is hanging', async () => {
+      fetchMock.mockImplementationOnce(() => new Promise(() => {}));
+      clientLog('info', 'a.b', 'early');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      clientLog('info', 'a.b', 'late');
+      let done = false;
+      void flushClientLogs({ keepalive: true, timeoutMs: 1000 }).then(() => {
+        done = true;
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const init = fetchMock.mock.calls[1][1] as FetchInit;
+      expect(init.keepalive).toBe(true);
+      expect(JSON.parse(init.body).entries.map((e: any) => e.message)).toEqual(['late']);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(done).toBe(true);
+      await vi.advanceTimersByTimeAsync(60000);
+      const messages = sentEntries().map((e) => e.message);
+      expect(messages.filter((m) => m === 'late')).toHaveLength(1);
+      expect(messages.filter((m) => m === 'early').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not duplicate entries when a plain flush joins a running send', async () => {
+      let release: (v: unknown) => void = () => {};
+      fetchMock.mockImplementationOnce(
+        () => new Promise((resolve) => { release = resolve; })
+      );
+      clientLog('info', 'a.b', 'one');
+      const first = flushClientLogs();
+      await vi.advanceTimersByTimeAsync(0);
+      clientLog('info', 'a.b', 'two');
+      const second = flushClientLogs();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      release({ ok: true, status: 204 });
+      await Promise.all([first, second]);
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(sentEntries().map((e) => e.message)).toEqual(['one', 'two']);
     });
 
     it('applies keepalive passed to flushClientLogs', async () => {
@@ -244,7 +289,7 @@ describe('clientLogger', () => {
       await vi.advanceTimersByTimeAsync(60000);
     });
 
-    it('does not throw when details are hostile', () => {
+    it('does not throw when details are hostile', async () => {
       const hostile = {} as any;
       Object.defineProperty(hostile, 'bad', {
         enumerable: true,
@@ -252,7 +297,11 @@ describe('clientLogger', () => {
           throw new Error('getter');
         }
       });
+      hostile.good = 'kept';
       expect(() => clientLog('info', 'a.b', 'x', hostile)).not.toThrow();
+      await flushClientLogs();
+      expect(sentEntries()).toHaveLength(1);
+      expect(sentEntries()[0].details).toEqual({ good: 'kept' });
     });
   });
 
@@ -321,6 +370,14 @@ describe('clientLogger', () => {
           config: { method: 'post', url: 'https://example.com/api/x/y?a=b#frag' }
         })
       ).toEqual({ name: 'AxiosError', method: 'POST', path: '/api/x/y' });
+    });
+
+    it('reduces protocol-relative, blob and data URLs', () => {
+      const path = (url: string) =>
+        describeError({ isAxiosError: true, name: 'E', config: { url } }).path;
+      expect(path('//cdn.example.com/a/b?x=1')).toBe('/a/b');
+      expect(path('blob:http://localhost/1234-5678')).toBe('blob:');
+      expect(path('data:text/plain;base64,AAAA')).toBe('data:');
     });
 
     it('describes a plain Error', () => {
@@ -393,6 +450,25 @@ describe('clientLogger', () => {
         message: 'render failed',
         info: 'i'.repeat(100)
       });
+    });
+
+    it('keeps Vue errors visible in the console when no handler existed', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const app = fakeApp();
+      installGlobalErrorHandlers(app);
+      const err = new Error('visible');
+      app.config.errorHandler(err, null, 'info');
+      expect(spy).toHaveBeenCalledWith(err);
+      spy.mockRestore();
+    });
+
+    it('does not add console output when chaining to an existing handler', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const app = fakeApp(vi.fn());
+      installGlobalErrorHandlers(app);
+      app.config.errorHandler(new Error('x'), null, 'info');
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
     });
 
     it('is idempotent', async () => {
