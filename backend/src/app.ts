@@ -14,6 +14,7 @@ import { initializeController as initializeAdminController } from './controllers
 import { requestLogger } from './middleware/loggingMiddleware';
 import { createRateLimiter } from './middleware/rateLimiter';
 import { sessionContext, attachUserToContext } from './middleware/sessionContext';
+import { resolveTrustProxy } from './utils/trustProxy';
 
 export interface AppServices {
   calibreService: CalibreService;
@@ -35,10 +36,13 @@ export function createApp(
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const useSecureCookies = frontendUrl.startsWith('https://');
 
-  // Production deployments can terminate TLS in a reverse proxy. Trust its
-  // forwarded protocol only when this app is configured for an HTTPS frontend.
-  if (useSecureCookies) {
-    app.set('trust proxy', 1);
+  // Production deployments can terminate TLS in a reverse proxy. By default,
+  // trust one hop only when this app is configured for an HTTPS frontend;
+  // TRUST_PROXY_HOPS sets the number of proxies in front (for example 2 behind
+  // Synology Reverse Proxy and the frontend nginx) so req.ip is the real client.
+  const trustProxy = resolveTrustProxy(process.env.TRUST_PROXY_HOPS, frontendUrl);
+  if (trustProxy !== undefined) {
+    app.set('trust proxy', trustProxy);
   }
 
   app.use(cors({

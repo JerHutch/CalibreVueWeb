@@ -32,6 +32,8 @@ services:
       - CALIBRE_DB_NAME=${CALIBRE_DB_NAME:-metadata.db}
       - TZ=${TZ:-UTC}
       - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS:-}
+      - CLIENT_LOG_DAILY_LIMIT=${CLIENT_LOG_DAILY_LIMIT:-}
     networks:
       - calibre-network
 

@@ -4,6 +4,8 @@ import { createApp } from '../../src/app';
 import logger from '../../src/utils/logger';
 import { AuthService, User } from '../../src/services/authService';
 import { CalibreService } from '../../src/services/calibreService';
+import { setClientLogBudget } from '../../src/controllers/clientLogController';
+import { ClientLogBudget } from '../../src/utils/clientLogBudget';
 
 const user: User = {
   id: 7,
@@ -351,6 +353,69 @@ describe('POST /api/client-logs', () => {
     expect(limited.body).toEqual({ error: 'Too many requests' });
   });
 
+  describe('daily budget', () => {
+    let previous: ClientLogBudget;
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      previous = setClientLogBudget(new ClientLogBudget({ limit: 3 }));
+      warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      setClientLogBudget(previous);
+    });
+
+    const browserWrites = () =>
+      writeSpy.mock.calls.filter(call => (call[0] as any).source === 'browser');
+
+    it('accepts entries until the budget is used, then answers 429 and writes nothing', async () => {
+      const app = createTestApp();
+      const first = await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry(), entry()] });
+      expect(first.status).toBe(204);
+      expect(browserWrites()).toHaveLength(2);
+
+      const over = await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry(), entry()] });
+      expect(over.status).toBe(429);
+      expect(over.body).toEqual({ error: 'Daily log budget exhausted' });
+      expect(browserWrites()).toHaveLength(2);
+
+      const last = await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry()] });
+      expect(last.status).toBe(204);
+      expect(browserWrites()).toHaveLength(3);
+
+      const again = await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry()] });
+      expect(again.status).toBe(429);
+      expect(browserWrites()).toHaveLength(3);
+
+      const warnings = warnSpy.mock.calls.filter(
+        call => (call[1] as any)?.event === 'clientlog.budget_exhausted'
+      );
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0][1]).toEqual({ event: 'clientlog.budget_exhausted', details: { limit: 3 } });
+    });
+
+    it('does not spend budget on rejected payloads', async () => {
+      const app = createTestApp();
+      await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry(), entry(), entry({ level: 'bad' })] });
+      const res = await request(app)
+        .post('/api/client-logs')
+        .send({ sessionId: SESSION, entries: [entry(), entry(), entry()] });
+      expect(res.status).toBe(204);
+      expect(browserWrites()).toHaveLength(3);
+    });
+  });
+
   it('does not write an http.request line for the endpoint', async () => {
     const infoSpy = vi.spyOn(logger, 'info');
     await request(createTestApp()).post('/api/client-logs').send({ sessionId: SESSION, entries: [] });
@@ -385,5 +450,38 @@ describe('http.request session context', () => {
       .find(entry => entry.event === 'http.request');
     expect(line).toBeDefined();
     expect(line.sessionId).toBe(SESSION);
+  });
+});
+
+describe('TRUST_PROXY_HOPS', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the old default when unset', () => {
+    vi.stubEnv('TRUST_PROXY_HOPS', '');
+    vi.stubEnv('FRONTEND_URL', 'https://books.example.com');
+    expect(createTestApp().get('trust proxy')).toBe(1);
+    vi.stubEnv('FRONTEND_URL', 'http://localhost:8888');
+    expect(createTestApp().get('trust proxy')).toBe(false);
+  });
+
+  it('rate limits each real client separately behind two proxies', async () => {
+    vi.stubEnv('TRUST_PROXY_HOPS', '2');
+    vi.spyOn(logger, 'write').mockImplementation(() => {});
+    const app = createTestApp();
+    expect(app.get('trust proxy')).toBe(2);
+    const send = (client: string) =>
+      request(app)
+        .post('/api/client-logs')
+        .set('X-Forwarded-For', `${client}, 10.0.0.2`)
+        .send({ sessionId: SESSION, entries: [] });
+
+    for (let i = 0; i < 60; i += 1) {
+      expect((await send('203.0.113.1')).status).toBe(204);
+    }
+    expect((await send('203.0.113.1')).status).toBe(429);
+    expect((await send('203.0.113.2')).status).toBe(204);
   });
 });

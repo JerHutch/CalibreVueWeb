@@ -2,6 +2,7 @@ import { RequestHandler } from 'express';
 import { redactText } from '../utils/redact';
 import logger, { LogLevel } from '../utils/logger';
 import { getContext, isValidSessionId } from '../utils/requestContext';
+import { ClientLogBudget, parseClientLogDailyLimit } from '../utils/clientLogBudget';
 
 const MAX_ENTRIES = 20;
 const MAX_MESSAGE_LENGTH = 1000;
@@ -13,6 +14,24 @@ const MAX_DETAIL_KEY = 64;
 const DETAIL_KEY_PATTERN = /^[A-Za-z0-9._-]+$/;
 const EVENT_PATTERN = /^[a-z0-9._-]+$/;
 const LEVELS: readonly string[] = ['info', 'warn', 'error'];
+
+// Created on first use so CLIENT_LOG_DAILY_LIMIT is read after startup has
+// loaded the environment, not when this module is imported.
+let budget: ClientLogBudget | null = null;
+
+function getBudget(): ClientLogBudget {
+  budget ??= new ClientLogBudget({
+    limit: parseClientLogDailyLimit(process.env.CLIENT_LOG_DAILY_LIMIT)
+  });
+  return budget;
+}
+
+/** Test-only: swaps the daily budget and returns the previous one. */
+export function setClientLogBudget(next: ClientLogBudget): ClientLogBudget {
+  const previous = getBudget();
+  budget = next;
+  return previous;
+}
 
 function sanitizeDetails(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -106,6 +125,11 @@ export const receiveClientLogs: RequestHandler = (req, res) => {
       message: redactText(message).slice(0, MAX_MESSAGE_LENGTH),
       ...(cleanDetails ? { details: cleanDetails } : {})
     });
+  }
+
+  if (!getBudget().tryConsume(prepared.length)) {
+    res.status(429).json({ error: 'Daily log budget exhausted' });
+    return;
   }
 
   for (const entry of prepared) {

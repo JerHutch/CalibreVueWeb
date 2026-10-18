@@ -54,6 +54,8 @@ Notes:
 - `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. A new log file is created on the first log line after local midnight in this zone.
 - `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep. A missing, invalid or non-positive value falls back to `30`.
 - `LOG_DIR` (optional) overrides the log directory. The default is `logs` under the app directory, `/usr/src/app/logs` in the container; leave it alone when using the Compose volumes.
+- `TRUST_PROXY_HOPS` (optional) is the number of proxies in front of the backend. The backend uses it to find the real client IP (for the browser log rate limit) and to trust the forwarded protocol. Unset, empty or invalid keeps the default: one hop when `FRONTEND_URL` starts with `https://`, otherwise none. `0` trusts no proxy, which also stops an `https://` setup behind a TLS-terminating proxy from seeing requests as HTTPS. Behind Synology Reverse Proxy and the frontend nginx container, two hops are typically needed for the real client IP, so set `TRUST_PROXY_HOPS=2`. A value larger than the real number of proxies lets clients spoof their IP with an `X-Forwarded-For` header, so only raise it to the number of proxies actually in front. Requests sent straight to the published `BACKEND_PORT` skip the proxies and can do the same; do not expose that port publicly.
+- `CLIENT_LOG_DAILY_LIMIT` (optional, default `20000`) is how many browser log entries the backend accepts per local day, a ceiling on what the public log endpoint can write to disk. Once a request would go over it, `POST /api/client-logs` answers `429` and writes nothing, and one `clientlog.budget_exhausted` warning is logged that day. The count resets at local midnight and on restart. A missing, invalid or non-positive value falls back to `20000`.
 
 ## Create Your Environment File
 
@@ -87,7 +89,7 @@ The backend uses three storage locations:
   - Logs are JSON lines, one file per container start and per local day, named `app-YYYY-MM-DDTHH-mm-ss.log`. They persist across container recreation and are ignored by Git.
   - Files older than `LOG_RETENTION_DAYS` are deleted at startup and at each daily rollover. Only files matching the `app-*.log` pattern are removed; an older `app.log` is never deleted.
   - Day boundaries follow the container's `TZ`. The same JSON lines are written to the console, so they also show in `docker compose logs`.
-  - Browser errors and sign-in steps reach the backend through the public `POST /api/client-logs`, limited to 60 requests per minute per client IP. Behind a reverse proxy and the frontend nginx container, clients may share one address and one limit; this is acceptable for a handful of users.
+  - Browser errors and sign-in steps reach the backend through the public `POST /api/client-logs`, limited to 60 requests per minute per client IP and to `CLIENT_LOG_DAILY_LIMIT` entries per day. Behind a reverse proxy and the frontend nginx container, clients share one address and one limit unless `TRUST_PROXY_HOPS` matches the number of proxies (see above).
   - See [Reading The Logs](logging.md) for filtering the logs with `jq` and `grep`.
 
 The tracked `app_data/.gitkeep` creates the host data directory for local checkouts.

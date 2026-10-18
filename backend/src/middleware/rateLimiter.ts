@@ -10,8 +10,8 @@ const MAX_TRACKED_KEYS = 10000;
 
 // Fixed-window, in-memory limiter keyed on req.ip.
 // Limitation: behind the reverse proxy and the frontend nginx container, req.ip
-// is the proxy's address unless `trust proxy` is configured (it is only enabled
-// when FRONTEND_URL is https), so all clients may share one bucket.
+// is the nearest proxy's address unless `trust proxy` covers every hop (see
+// TRUST_PROXY_HOPS in app.ts), so all clients may share one bucket.
 export function createRateLimiter({ windowMs, max, now = Date.now }: RateLimiterOptions): RequestHandler {
   // Map preserves insertion order, so the first key is the oldest bucket.
   const buckets = new Map<string, { windowStart: number; count: number }>();

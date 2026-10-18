@@ -83,13 +83,15 @@ Key points:
 - `PUID` and `PGID` must match a NAS user and group that can read the Calibre library, for example the owner shown by `ls -ldn /volume1/books/calibre`. Synology ACLs can block the default `1000:1000` even when the folder looks world-accessible; the backend log reports `EACCES` when that happens.
 - `TZ` (optional, default `UTC`) is an IANA time zone name such as `America/New_York`. A new log file is created on the first log line after local midnight in this zone.
 - `LOG_RETENTION_DAYS` (optional, default `30`) is how many days of log files to keep; a missing, invalid or non-positive value falls back to `30`. `LOG_DIR` (optional) overrides the log directory; the default is `/usr/src/app/logs` in the container, mounted from `app_data/logs`.
+- `TRUST_PROXY_HOPS` (optional) is the number of proxies in front of the backend. Behind Synology Reverse Proxy and the frontend nginx container, two hops are typically needed for the real client IP, so set `TRUST_PROXY_HOPS=2`; unset keeps the default of one hop for an `https://` `FRONTEND_URL`. A value larger than the real number of proxies lets clients spoof their IP with an `X-Forwarded-For` header, so only raise it to the number of proxies actually in front, and do not expose the backend port `3000` publicly. See [Docker Deployment](docker.md) for details.
+- `CLIENT_LOG_DAILY_LIMIT` (optional, default `20000`) caps the browser log entries accepted per local day; see [Docker Deployment](docker.md).
 - `CALIBRE_DB_PATH` is only used by Compose-style host mapping. If you configure volumes manually in the Synology UI, what matters most is that the container still sees the library at `/usr/src/app/data/calibre`.
 
 ## Logs
 
 The backend writes JSON-line log files to `app_data/logs`, one file per container start and per local day, named `app-YYYY-MM-DDTHH-mm-ss.log`. Files older than `LOG_RETENTION_DAYS` are deleted at startup and at rollover; an older `app.log` is left alone. The same lines appear in Container Manager's log view.
 
-Browser errors and sign-in steps are posted to the public `POST /api/client-logs`, limited to 60 requests per minute per client IP. Behind Synology Reverse Proxy and the frontend nginx container, requests may all appear to come from one address and share that limit. This is acceptable for a handful of users.
+Browser errors and sign-in steps are posted to the public `POST /api/client-logs`, limited to 60 requests per minute per client IP and to `CLIENT_LOG_DAILY_LIMIT` entries per day. Behind Synology Reverse Proxy and the frontend nginx container, requests all appear to come from one address and share that limit unless `TRUST_PROXY_HOPS=2` is set.
 
 See [Reading The Logs](logging.md) for filtering the logs with `jq` and `grep`.
 
