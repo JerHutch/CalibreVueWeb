@@ -1,7 +1,7 @@
-import fs from 'fs';
 import path from 'path';
 import { redactText, redactValue } from './redact';
 import { getContext } from './requestContext';
+import { RollingFileDestination } from './rollingFileDestination';
 
 export interface LogDestination {
   log: (message: string) => void;
@@ -12,33 +12,6 @@ class ConsoleDestination implements LogDestination {
   log(message: string) {
     // eslint-disable-next-line no-console
     console.log(message);
-  }
-}
-
-class FileDestination implements LogDestination {
-  private stream: fs.WriteStream;
-  constructor(filePath: string) {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    this.stream = fs.createWriteStream(filePath, { flags: 'a' });
-    this.stream.on('error', (error) => {
-      // eslint-disable-next-line no-console
-      console.error(`ERROR: Unable to write log file ${filePath}: ${error.message}`);
-    });
-  }
-  log(message: string) {
-    this.stream.write(message + '\n');
-  }
-  flush(): Promise<void> {
-    if (this.stream.destroyed) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      this.stream.once('close', resolve);
-      this.stream.end();
-    });
   }
 }
 
@@ -149,10 +122,13 @@ function reportFailure(error: unknown) {
   }
 }
 
-const logFilePath = path.join(process.cwd(), 'logs', 'app.log');
+const retentionDays = Number.parseInt(process.env.LOG_RETENTION_DAYS ?? '', 10);
 const logger = new Logger([
   new ConsoleDestination(),
-  new FileDestination(logFilePath)
+  new RollingFileDestination({
+    dir: process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
+    retentionDays: retentionDays > 0 ? retentionDays : 30
+  })
 ]);
 
 export default logger;

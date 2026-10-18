@@ -16,6 +16,17 @@ vi.mock('../../src/services/calibreService', () => ({
   }))
 }));
 
+// Mock the logger so no log destinations touch the filesystem
+vi.mock('../../src/utils/logger', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    write: vi.fn(),
+    flush: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
 // Mock fs
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
