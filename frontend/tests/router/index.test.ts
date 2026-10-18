@@ -13,6 +13,7 @@ const flushRouter = async () => {
 describe('router guards', () => {
   let state: AuthState;
   let ensureAuthInitialized: ReturnType<typeof vi.fn>;
+  let clientLog: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.resetModules();
@@ -22,6 +23,14 @@ describe('router guards', () => {
       isAdmin: false,
     };
     ensureAuthInitialized = vi.fn().mockResolvedValue(undefined);
+    clientLog = vi.fn();
+
+    vi.doMock('@/logging/clientLogger', async () => {
+      const actual = await vi.importActual<typeof import('@/logging/clientLogger')>(
+        '@/logging/clientLogger'
+      );
+      return { ...actual, clientLog };
+    });
 
     vi.doMock('@/stores/authStore', () => ({
       useAuthStore: () => ({
@@ -71,5 +80,24 @@ describe('router guards', () => {
 
     expect(ensureAuthInitialized).toHaveBeenCalledTimes(1);
     expect(router.currentRoute.value.name).toBe('admin');
+  });
+
+  it('logs router errors and keeps console.error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { default: router } = await import('@/router');
+    const boom = new Error('chunk failed');
+    ensureAuthInitialized.mockRejectedValueOnce(boom);
+
+    await router.push('/books').catch(() => undefined);
+    await flushRouter();
+
+    expect(consoleError).toHaveBeenCalledWith('Router error:', boom);
+    expect(clientLog).toHaveBeenCalledWith(
+      'error',
+      'router.error',
+      'Router error',
+      expect.objectContaining({ name: 'Error', message: 'chunk failed' })
+    );
+    consoleError.mockRestore();
   });
 });

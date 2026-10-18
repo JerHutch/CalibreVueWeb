@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { clientLog, describeError } from '@/logging/clientLogger';
 import { useAuthStore } from '@/stores/authStore';
 
 const router = createRouter({
@@ -42,6 +43,7 @@ const router = createRouter({
 // Add error handling for navigation
 router.onError((error) => {
   console.error('Router error:', error);
+  clientLog('error', 'router.error', 'Router error', describeError(error));
 });
 
 router.beforeEach(async (to, from, next) => {
