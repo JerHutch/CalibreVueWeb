@@ -67,13 +67,25 @@ function decodeKey(name: string): string {
   }
 }
 
-export function redactText(text: string): string {
-  let input = text;
-
-  if (input.length > MAX_TEXT_LENGTH) {
-    input = `${input.slice(0, MAX_TEXT_LENGTH)}[Truncated]`;
+// Cut at the cap, then drop the trailing run of non-whitespace characters: it
+// may be the start of an email, token or JWT that the cut left incomplete.
+function cutAtCap(text: string): string {
+  let end = MAX_TEXT_LENGTH;
+  while (end > 0 && !/\s/.test(text[end - 1])) {
+    end -= 1;
   }
+  return text.slice(0, end);
+}
 
+export function redactText(text: string): string {
+  const truncated = text.length > MAX_TEXT_LENGTH;
+  const redacted = redactPatterns(truncated ? cutAtCap(text) : text);
+
+  // The marker is added after redaction so a pattern can never swallow it.
+  return truncated ? `${redacted}[Truncated]` : redacted;
+}
+
+function redactPatterns(input: string): string {
   return input
     .replace(BEARER_PATTERN, `Bearer ${REDACTED_VALUE}`)
     .replace(JWT_PATTERN, REDACTED_VALUE)

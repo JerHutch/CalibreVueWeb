@@ -152,6 +152,7 @@ describe('POST /api/client-logs', () => {
         .send('{"entries": [secret-body-text');
 
       expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'Invalid log payload' });
       expect(writeSpy).not.toHaveBeenCalled();
       expect(JSON.stringify(consoleErrorSpy.mock.calls)).not.toContain('secret-body-text');
     });
@@ -162,6 +163,7 @@ describe('POST /api/client-logs', () => {
         .send({ sessionId: SESSION, entries: [entry({ message: 'x'.repeat(17 * 1024) })] });
 
       expect(res.status).toBe(413);
+      expect(res.body).toEqual({ error: 'Payload too large' });
       expect(writeSpy).not.toHaveBeenCalled();
     });
   });
@@ -169,7 +171,7 @@ describe('POST /api/client-logs', () => {
   it('truncates message to 1000 characters', async () => {
     await request(createTestApp())
       .post('/api/client-logs')
-      .send({ sessionId: SESSION, entries: [entry({ message: 'm'.repeat(5000) })] });
+      .send({ sessionId: SESSION, entries: [entry({ message: 'm '.repeat(2500) })] });
 
     expect((writeSpy.mock.calls[0][0] as any).message).toHaveLength(1000);
   });
@@ -197,7 +199,63 @@ describe('POST /api/client-logs', () => {
     expect(written).not.toHaveProperty('nested');
     expect(written).not.toHaveProperty('list');
     expect(written).not.toHaveProperty('nothing');
-    expect(Object.keys(written).length).toBeLessThanOrEqual(20);
+    expect(written).not.toHaveProperty('inf');
+    expect(Object.keys(written)).toHaveLength(20);
+  });
+
+  it('drops detail keys that are too long or have unsafe characters', async () => {
+    await request(createTestApp())
+      .post('/api/client-logs')
+      .send({
+        sessionId: SESSION,
+        entries: [
+          entry({
+            details: {
+              ok_key: 'a',
+              'dotted.key-1': 'b',
+              ['k'.repeat(65)]: 'c',
+              'has space': 'd',
+              'user@example.com': 'e',
+              'sl/ash': 'f'
+            }
+          })
+        ]
+      });
+
+    expect((writeSpy.mock.calls[0][0] as any).details).toEqual({
+      ok_key: 'a',
+      'dotted.key-1': 'b'
+    });
+  });
+
+  it('redacts before truncating so secrets straddling the cut do not leak', async () => {
+    const lines: string[] = [];
+    writeSpy.mockRestore();
+    vi.spyOn(logger as any, 'emit').mockImplementation((line: any) => {
+      lines.push(line);
+    });
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InJlYWRlciJ9.c2lnbmF0dXJlMTIz';
+    const email = 'reader@example.com';
+    const at = (prefixLen: number, secret: string) =>
+      `${'a'.repeat(prefixLen - 1)} ${secret}`;
+
+    await request(createTestApp())
+      .post('/api/client-logs')
+      .send({
+        sessionId: SESSION,
+        entries: [
+          entry({ message: at(1000 - 10, email) + ' tail' }),
+          entry({ message: at(1000 - 30, jwt) + ' tail' }),
+          entry({ message: 'ok', details: { a: at(200 - 10, email), b: at(200 - 30, jwt) } })
+        ]
+      });
+
+    const browser = lines.filter(line => line.includes('"source":"browser"'));
+    const all = browser.join('\n');
+    expect(browser).toHaveLength(3);
+    expect(all).not.toMatch(/reader@|@example|reader@example/);
+    expect(all).not.toMatch(/eyJ/);
+    expect(all).not.toMatch(/eyJlbWF|c2lnbm/);
   });
 
   it('drops invalid details instead of rejecting', async () => {
@@ -275,10 +333,15 @@ describe('POST /api/client-logs', () => {
   });
 
   it('keeps the global json parser working for other routes', async () => {
-    const res = await request(createTestApp(user))
+    const app = createTestApp(user);
+    const small = await request(app).post('/api/auth/logout').send({ a: 1 });
+    const big = await request(app)
       .post('/api/auth/logout')
-      .send({ a: 1 });
-    expect(res.status).not.toBe(413);
+      .send({ pad: 'x'.repeat(20 * 1024) });
+
+    expect(big.status).not.toBe(413);
+    expect(big.status).not.toBe(400);
+    expect(big.status).toBe(small.status);
   });
 });
 

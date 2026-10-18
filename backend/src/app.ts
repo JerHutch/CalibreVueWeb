@@ -52,14 +52,11 @@ export function createApp(
   // Answer parser failures (400 malformed, 413 too large) here so Express's
   // default handler never prints the error, which can quote the offending body.
   app.use('/api/client-logs', (
-    err: { status?: number; statusCode?: number } | undefined,
+    err: { status?: number; statusCode?: number },
     _req: express.Request,
     res: express.Response,
     next: express.NextFunction
   ) => {
-    if (!err) {
-      return next();
-    }
     const status = err.status ?? err.statusCode ?? 400;
     const safeStatus = status === 413 ? 413 : 400;
     res.status(safeStatus).json({

@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import { redactText } from '../utils/redact';
 import logger, { LogLevel } from '../utils/logger';
 import { getContext, isValidSessionId } from '../utils/requestContext';
 
@@ -8,6 +9,8 @@ const MAX_EVENT_LENGTH = 64;
 const MAX_DETAIL_KEYS = 20;
 const MAX_DETAIL_STRING = 200;
 const MAX_TS_SKEW_MS = 24 * 60 * 60 * 1000;
+const MAX_DETAIL_KEY = 64;
+const DETAIL_KEY_PATTERN = /^[A-Za-z0-9._-]+$/;
 const EVENT_PATTERN = /^[a-z0-9._-]+$/;
 const LEVELS: readonly string[] = ['info', 'warn', 'error'];
 
@@ -20,8 +23,10 @@ function sanitizeDetails(value: unknown): Record<string, unknown> | undefined {
   let count = 0;
   for (const [key, item] of Object.entries(value)) {
     if (count >= MAX_DETAIL_KEYS) break;
+    if (key.length > MAX_DETAIL_KEY || !DETAIL_KEY_PATTERN.test(key)) continue;
     if (typeof item === 'string') {
-      result[key] = item.slice(0, MAX_DETAIL_STRING);
+      // Redact before cutting so a secret straddling the cut cannot survive.
+      result[key] = redactText(item).slice(0, MAX_DETAIL_STRING);
     } else if (typeof item === 'number' && Number.isFinite(item)) {
       result[key] = item;
     } else if (typeof item === 'boolean') {
@@ -80,7 +85,6 @@ export const receiveClientLogs: RequestHandler = (req, res) => {
     }
     if (
       typeof event !== 'string' ||
-      event.length === 0 ||
       event.length > MAX_EVENT_LENGTH ||
       !EVENT_PATTERN.test(event)
     ) {
@@ -99,7 +103,7 @@ export const receiveClientLogs: RequestHandler = (req, res) => {
       source: 'browser' as const,
       ...(sessionId ? { sessionId } : {}),
       event,
-      message: message.slice(0, MAX_MESSAGE_LENGTH),
+      message: redactText(message).slice(0, MAX_MESSAGE_LENGTH),
       ...(cleanDetails ? { details: cleanDetails } : {})
     });
   }

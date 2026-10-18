@@ -187,6 +187,20 @@ describe('redactValue', () => {
     expect(arr[100]).toBe('[+400 more items]');
   });
 
+  it.each([
+    ['email', 'reader@example.com'],
+    ['bearer token', 'Bearer abcdef1234567890abcdef'],
+    ['JWT', 'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InJlYWRlciJ9.c2lnbmF0dXJlMTIz']
+  ])('leaves no partial %s when the cap cuts through it', (_name, secret) => {
+    for (const offset of [3, 8, 14, 20]) {
+      const prefix = `${'a '.repeat(2100).slice(0, 4096 - offset - 1)} `;
+      const text = `${prefix}${secret} tail`;
+      const result = redactText(text);
+      expect(result.endsWith('[Truncated]')).toBe(true);
+      expect(result).not.toMatch(/reader|example|abcdef|eyJ|c2lnbm/);
+    }
+  });
+
   it('caps long strings', () => {
     const result = redactValue('x'.repeat(100000));
     expect(result.length).toBeLessThan(5000);
