@@ -59,6 +59,33 @@ describe('router guards', () => {
     expect(router.currentRoute.value.name).toBe('login');
   });
 
+  it('logs auth.redirect.login with a path that has no query string', async () => {
+    const { default: router } = await import('@/router');
+
+    await router.push('/books?x=1');
+    await flushRouter();
+
+    expect(router.currentRoute.value.name).toBe('login');
+    expect(clientLog).toHaveBeenCalledWith('info', 'auth.redirect.login', 'Redirected to login', {
+      from: '/books',
+    });
+  });
+
+  it('does not log auth.redirect.login for authenticated users', async () => {
+    state.isAuthenticated = true;
+    const { default: router } = await import('@/router');
+
+    await router.push('/books');
+    await flushRouter();
+
+    expect(clientLog).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'auth.redirect.login',
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
   it('redirects non-admin users away from admin routes', async () => {
     state.isAuthenticated = true;
     const { default: router } = await import('@/router');

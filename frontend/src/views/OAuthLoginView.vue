@@ -1,9 +1,43 @@
 <script>
+import { clientLog, flushClientLogs } from '@/logging/clientLogger';
+import { setSignInCookie } from '@/logging/sessionId';
+
+const FLUSH_TIMEOUT_MS = 1000;
+
 export default {
   name: 'OAuthLoginView',
+  data() {
+    return {
+      signingIn: false
+    };
+  },
+  mounted() {
+    clientLog('info', 'auth.login.view', 'Login page shown');
+  },
   methods: {
-    handleGoogleLogin() {
-      window.location.href = '/api/auth/google'
+    async handleGoogleLogin() {
+      if (this.signingIn) {
+        return;
+      }
+      this.signingIn = true;
+
+      let timer;
+      try {
+        clientLog('info', 'auth.google.click', 'Google sign-in clicked');
+        setSignInCookie();
+        const timeout = new Promise((resolve) => {
+          timer = setTimeout(resolve, FLUSH_TIMEOUT_MS);
+        });
+        await Promise.race([
+          flushClientLogs({ keepalive: true, timeoutMs: FLUSH_TIMEOUT_MS }),
+          timeout
+        ]);
+      } catch {
+        // Logging problems must never block sign-in.
+      } finally {
+        clearTimeout(timer);
+        window.location.href = '/api/auth/google';
+      }
     }
   }
 }

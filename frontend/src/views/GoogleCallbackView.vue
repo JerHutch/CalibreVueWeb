@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { clientLog } from '@/logging/clientLogger';
 import { useAuthStore } from '@/stores/authStore';
 
 type CallbackStatus = 'pending' | 'denied' | 'approved' | 'error' | null;
@@ -80,6 +81,13 @@ onMounted(async () => {
   try {
     callbackStatus.value = readCallbackStatus();
 
+    const viewStatus = callbackStatus.value ?? 'none';
+    const viewLevel =
+      viewStatus === 'error' ? 'error' : viewStatus === 'pending' || viewStatus === 'denied' ? 'warn' : 'info';
+    clientLog(viewLevel, 'auth.callback.view', `Sign-in callback shown (${viewStatus})`, {
+      status: viewStatus
+    });
+
     if (
       callbackStatus.value === 'pending' ||
       callbackStatus.value === 'denied' ||
@@ -91,6 +99,14 @@ onMounted(async () => {
 
     await authStore.checkAuth();
 
+    const authenticated = Boolean(authStore.isAuthenticated);
+    clientLog(
+      authenticated ? 'info' : 'warn',
+      'auth.callback.result',
+      `Sign-in check finished (authenticated=${authenticated})`,
+      { authenticated }
+    );
+
     if (authStore.isAuthenticated) {
       router.push({ name: 'books' });
     } else {
@@ -98,6 +114,10 @@ onMounted(async () => {
     }
   } catch (err) {
     error.value = 'Failed to authenticate';
+    clientLog('error', 'auth.callback.result', 'Sign-in check finished (authenticated=false)', {
+      authenticated: false,
+      failed: true
+    });
     console.error('Authentication error:', err);
   } finally {
     loading.value = false;

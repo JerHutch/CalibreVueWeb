@@ -54,6 +54,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    clientLog('info', 'auth.redirect.login', 'Redirected to login', { from: to.path });
     next({ name: 'login' });
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next({ name: 'books' });

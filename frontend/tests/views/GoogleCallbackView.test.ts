@@ -3,6 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { reactive } from 'vue';
 import GoogleCallbackView from '@/views/GoogleCallbackView.vue';
 
+const clientLogMock = vi.fn();
+vi.mock('@/logging/clientLogger', () => ({
+  clientLog: (...args: unknown[]) => clientLogMock(...args),
+}));
+
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
 const logoutMock = vi.fn().mockResolvedValue(undefined);
@@ -89,5 +94,99 @@ describe('GoogleCallbackView', () => {
 
     expect(logoutMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith({ name: 'login' });
+  });
+
+  it.each([
+    ['pending', 'warn'],
+    ['denied', 'warn'],
+    ['error', 'error'],
+    ['approved', 'info'],
+  ])('logs auth.callback.view for status %s at level %s', async (status, level) => {
+    routeState.query = { status };
+    authState.isAuthenticated = true;
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).toHaveBeenCalledWith(
+      level,
+      'auth.callback.view',
+      `Sign-in callback shown (${status})`,
+      { status }
+    );
+  });
+
+  it('logs status none when the query has no valid status', async () => {
+    routeState.query = { status: 'bogus', code: 'secret' };
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).toHaveBeenCalledWith(
+      'info',
+      'auth.callback.view',
+      'Sign-in callback shown (none)',
+      { status: 'none' }
+    );
+  });
+
+  it('logs auth.callback.result as info when authenticated', async () => {
+    routeState.query = { status: 'approved' };
+    authState.isAuthenticated = true;
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).toHaveBeenCalledWith(
+      'info',
+      'auth.callback.result',
+      'Sign-in check finished (authenticated=true)',
+      { authenticated: true }
+    );
+  });
+
+  it('logs auth.callback.result as warn when not authenticated', async () => {
+    routeState.query = { status: 'approved' };
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).toHaveBeenCalledWith(
+      'warn',
+      'auth.callback.result',
+      'Sign-in check finished (authenticated=false)',
+      { authenticated: false }
+    );
+  });
+
+  it('logs auth.callback.result as error when checkAuth throws', async () => {
+    routeState.query = { status: 'approved' };
+    checkAuthMock.mockRejectedValueOnce(new Error('boom'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).toHaveBeenCalledWith(
+      'error',
+      'auth.callback.result',
+      'Sign-in check finished (authenticated=false)',
+      { authenticated: false, failed: true }
+    );
+    consoleError.mockRestore();
+  });
+
+  it('does not log a result for pending status', async () => {
+    routeState.query = { status: 'pending' };
+
+    mount(GoogleCallbackView);
+    await flushPromises();
+
+    expect(clientLogMock).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'auth.callback.result',
+      expect.anything(),
+      expect.anything()
+    );
   });
 });
