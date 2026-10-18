@@ -56,7 +56,6 @@ export const getBookCover = async (req: Request, res: Response) => {
     }
 
     const coverPath = calibreService.getCoverPath(book);
-    logger.info(`coverPath ${coverPath}`);
     if (!coverPath) {
       return res.status(404).json({ error: 'Cover not found' });
     }
@@ -87,7 +86,6 @@ export const downloadBook = async (req: Request, res: Response) => {
     }
 
     const filePath = calibreService.getBookFilePath(book);
-    logger.info(`filePath ${filePath}`);
     if (!filePath) {
       return res.status(404).json({ error: 'Book file not found' });
     }

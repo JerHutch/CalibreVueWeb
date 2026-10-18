@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import logger from '../utils/logger';
 
 export interface Book {
   id: number;
@@ -63,7 +62,6 @@ export class CalibreService {
     const countStmt = this.db.prepare(countQuery);
     const countResult = countStmt.get(...params) as { count: number };
     const total = countResult.count;
-    logger.info(`Total books: ${total}`);
 
     // Then get paginated books
     const query = `
@@ -107,10 +105,6 @@ export class CalibreService {
     
     const booksStmt = this.db.prepare(query);
     const books = booksStmt.all(...params, pageSize, offset) as Book[];
-    logger.info(`Found ${books.length} books`);
-    if (books.length > 0) {
-      logger.info('First book: ' + JSON.stringify(books[0]));
-    }
     return { books, total };
   }
 

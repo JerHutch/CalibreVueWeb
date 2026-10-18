@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthService } from '../../src/services/authService';
+import logger from '../../src/utils/logger';
 
 // Mock better-sqlite3
 vi.mock('better-sqlite3', () => {
@@ -45,6 +46,14 @@ describe('AuthService', () => {
   });
 
   describe('getUserById', () => {
+    it('does not log each lookup', async () => {
+      const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+      mockPreparedStatement.get.mockReturnValueOnce(null);
+      await authService.getUserById('7');
+      expect(infoSpy).not.toHaveBeenCalled();
+      infoSpy.mockRestore();
+    });
+
     it('should return null if user is not found', async () => {
       mockPreparedStatement.get.mockReturnValueOnce(null);
 

@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../../src/types/express';
 import { getBooks, getBookById, initializeController, getBookCover, downloadBook } from '../../src/controllers/bookController';
 import { CalibreService } from '../../src/services/calibreService';
 import fs from 'fs';
+import logger from '../../src/utils/logger';
 
 // Mock the CalibreService
 vi.mock('../../src/services/calibreService', () => ({
@@ -245,6 +246,7 @@ describe('bookController', () => {
 
       await getBookCover(mockRequest as Request, mockResponse as Response);
       expect(mockResponse.sendFile).toHaveBeenCalledWith(mockCoverPath);
+      expect(logger.info).not.toHaveBeenCalled();
     });
   });
 
@@ -295,6 +297,7 @@ describe('bookController', () => {
       expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="Test Book.epub"');
       expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/epub');
       expect(mockResponse.sendFile).toHaveBeenCalledWith(mockFilePath);
+      expect(logger.info).not.toHaveBeenCalled();
     });
   });
 }); 

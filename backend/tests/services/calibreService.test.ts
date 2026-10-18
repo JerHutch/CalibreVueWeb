@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CalibreService, Book } from '../../src/services/calibreService';
 import path from 'path';
+import logger from '../../src/utils/logger';
 
 // Mock better-sqlite3
 vi.mock('better-sqlite3', () => {
@@ -59,6 +60,15 @@ describe('CalibreService', () => {
   });
 
   describe('getBooks', () => {
+    it('does not log per-request counts or book contents', async () => {
+      const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+      mockPreparedStatement.get.mockReturnValueOnce({ count: 1 });
+      mockPreparedStatement.all.mockReturnValueOnce([{ id: 1, title: 'Book 1' }]);
+      await calibreService.getBooks(1, 10);
+      expect(infoSpy).not.toHaveBeenCalled();
+      infoSpy.mockRestore();
+    });
+
     it('should return paginated books with total count', async () => {
       const mockBooks = [
         { id: 1, title: 'Book 1' },

@@ -34,8 +34,6 @@ export class AuthService {
   }
 
   async getUserById(id: string): Promise<User | null> {
-    logger.info(`Getting user by ID: ${id}`);
-
     try {
       const stmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`);
       const row = stmt.get(id) as UserRow | undefined;
