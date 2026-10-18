@@ -12,6 +12,7 @@ import {
 } from './controllers/googleAuthController';
 import { initializeController as initializeAdminController } from './controllers/adminController';
 import { requestLogger } from './middleware/loggingMiddleware';
+import { sessionContext, attachUserToContext } from './middleware/sessionContext';
 
 export interface AppServices {
   calibreService: CalibreService;
@@ -44,6 +45,7 @@ export function createApp(
     credentials: true
   }));
   app.use(express.json());
+  app.use(sessionContext);
   app.use(requestLogger);
   const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -59,6 +61,7 @@ export function createApp(
   app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
+  app.use(attachUserToContext);
   initializePassportSession(authService);
   const { testAuthUser } = options;
   if (testAuthUser) {
