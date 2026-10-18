@@ -50,6 +50,56 @@ describe('RollingFileDestination', () => {
     expect(fs.readFileSync(path.join(dir, logFileName(now)), 'utf8')).toBe('after\n');
   });
 
+  it('creates a missing nested directory and the first file', async () => {
+    const nested = path.join(dir, 'a', 'b', 'c');
+    const now = new Date(2026, 9, 18, 9, 0, 0);
+    const dest = new RollingFileDestination({ dir: nested, retentionDays: 30, now: () => now });
+    await dest.flush();
+    expect(fs.statSync(nested).isDirectory()).toBe(true);
+    expect(fs.existsSync(path.join(nested, logFileName(now)))).toBe(true);
+  });
+
+  it('reports once and stays silent when a path component is a regular file', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const blocker = path.join(dir, 'blocker');
+    fs.writeFileSync(blocker, 'x');
+    const now = new Date(2026, 9, 18, 9, 0, 0);
+    let dest: RollingFileDestination | undefined;
+    expect(() => {
+      dest = new RollingFileDestination({ dir: path.join(blocker, 'logs'), retentionDays: 30, now: () => now });
+    }).not.toThrow();
+    expect(() => dest!.log('one')).not.toThrow();
+    expect(() => dest!.log('two')).not.toThrow();
+    await dest!.flush();
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry on the same day but retries on the next day after a failure', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const blocker = path.join(dir, 'blocker');
+    const logDir = path.join(blocker, 'logs');
+    fs.writeFileSync(blocker, 'x');
+    let now = new Date(2026, 9, 18, 9, 0, 0);
+    const dest = new RollingFileDestination({ dir: logDir, retentionDays: 30, now: () => now });
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    // Problem removed, but still the same local day: no retry.
+    fs.rmSync(blocker);
+    fs.mkdirSync(blocker);
+    now = new Date(2026, 9, 18, 22, 0, 0);
+    dest.log('same day');
+    await dest.flush();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(logDir)).toBe(false);
+
+    // Next local day: retries and succeeds.
+    now = new Date(2026, 9, 19, 0, 0, 5);
+    dest.log('next day');
+    await dest.flush();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(path.join(logDir, logFileName(now)), 'utf8')).toBe('next day\n');
+  });
+
   it('never throws and reports once when the directory is unusable', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     let dest: RollingFileDestination | undefined;

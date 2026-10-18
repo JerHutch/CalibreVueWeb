@@ -127,7 +127,7 @@ const logger = new Logger([
   new ConsoleDestination(),
   new RollingFileDestination({
     dir: process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
-    retentionDays: retentionDays > 0 ? retentionDays : 30
+    retentionDays
   })
 ]);
 
