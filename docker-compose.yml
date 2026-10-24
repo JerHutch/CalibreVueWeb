@@ -29,6 +29,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
       - APP_DB_PATH=${APP_DB_PATH:-/usr/src/app/data/app/app.db}

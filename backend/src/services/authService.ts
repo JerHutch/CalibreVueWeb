@@ -26,6 +26,18 @@ interface UserRow {
   status: UserStatus;
 }
 
+function adminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function hasVerifiedEmail(profile: any): boolean {
+  const verified = profile.emails?.[0]?.verified ?? profile._json?.email_verified;
+  return verified === true || verified === 'true';
+}
+
 export class AuthService {
   private db: Database.Database;
 
@@ -111,6 +123,21 @@ export class AuthService {
           const updatedUserStmt = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`);
           row = updatedUserStmt.get(row.id) as UserRow;
         }
+      }
+
+      const email = String(profile.emails[0].value).toLowerCase();
+      if (
+        (row.is_admin !== 1 || row.status !== 'approved') &&
+        adminEmails().includes(email) &&
+        hasVerifiedEmail(profile)
+      ) {
+        this.db.prepare(`
+          UPDATE users
+          SET is_admin = 1, status = 'approved', updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(row.id);
+        row = this.db.prepare(`SELECT ${USER_SELECT_COLUMNS} FROM users WHERE id = ?`).get(row.id) as UserRow;
+        logger.info('Promoted configured admin email', { event: 'auth.admin.bootstrap', userId: String(row.id) });
       }
 
       return this.mapUser(row);

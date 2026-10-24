@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AuthService } from '../../src/services/authService';
 import logger from '../../src/utils/logger';
 
@@ -164,6 +164,51 @@ describe('AuthService', () => {
       const updateSql = mockDb.prepare.mock.calls[2][0];
       expect(updateSql).toContain('created_at = COALESCE(created_at, CURRENT_TIMESTAMP)');
       expect(updateSql).toContain('updated_at = CURRENT_TIMESTAMP');
+    });
+  });
+
+  describe('findOrCreateUser admin bootstrap', () => {
+    const pendingRow = {
+      id: 1, username: 'me', email: 'Me@Example.com', google_id: 'g1',
+      display_name: 'Me', picture: null, is_admin: 0, status: 'pending'
+    };
+    const promotedRow = { ...pendingRow, is_admin: 1, status: 'approved' };
+
+    function setup() {
+      const updateStmt = { run: vi.fn() };
+      mockDb.prepare
+        .mockReturnValueOnce({ get: vi.fn().mockReturnValueOnce(pendingRow) })
+        .mockReturnValueOnce(updateStmt)
+        .mockReturnValueOnce({ get: vi.fn().mockReturnValueOnce(promotedRow) });
+      return updateStmt;
+    }
+    const profile = (verified: unknown, email = 'me@example.com') => ({
+      id: 'g1', displayName: 'Me', emails: [{ value: email, verified }]
+    });
+
+    afterEach(() => { delete process.env.ADMIN_EMAILS; });
+
+    it('promotes a listed verified email (case-insensitive)', async () => {
+      process.env.ADMIN_EMAILS = ' other@x.com, ME@example.com ';
+      const updateStmt = setup();
+      const user = await authService.findOrCreateUser(profile(true));
+      expect(updateStmt.run).toHaveBeenCalledWith(1);
+      expect(user).toMatchObject({ isAdmin: true, status: 'approved' });
+    });
+
+    it('does not promote an unlisted email', async () => {
+      process.env.ADMIN_EMAILS = 'other@x.com';
+      mockDb.prepare.mockReturnValueOnce({ get: vi.fn().mockReturnValueOnce(pendingRow) });
+      const user = await authService.findOrCreateUser(profile(true));
+      expect(user).toMatchObject({ isAdmin: false, status: 'pending' });
+      expect(mockDb.prepare).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not promote an unverified email', async () => {
+      process.env.ADMIN_EMAILS = 'me@example.com';
+      mockDb.prepare.mockReturnValueOnce({ get: vi.fn().mockReturnValueOnce(pendingRow) });
+      const user = await authService.findOrCreateUser(profile(false));
+      expect(user).toMatchObject({ isAdmin: false, status: 'pending' });
     });
   });
 
